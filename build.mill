@@ -1,0 +1,49 @@
+package build
+
+import mill.*, scalalib.*
+import mill.api.BuildCtx
+import mill.scalalib.scalafmt.ScalafmtModule
+
+object `package` extends ScalaModule with ScalafmtModule:
+  outer =>
+
+  override def scalaVersion = "3.8.3"
+
+  override def scalacOptions = Seq(
+    "-deprecation",
+    "-feature",
+    "-unchecked",
+    "-new-syntax",
+    "-Wunused:imports",
+  )
+
+  def fmt() = Task.Command:
+    mill.scalalib.scalafmt.ScalafmtWorkerModule.worker().reformat(
+      filesToFormat(sources()) ++
+        filesToFormat(test.sources()) ++
+        filesToFormat(postinoScodec.sources()) ++
+        filesToFormat(postinoScodec.test.sources()),
+      scalafmtConfig().head,
+    )
+
+  object test extends ScalaTests with TestModule.Munit:
+    override def mvnDeps = Seq(
+      mvn"org.scalameta::munit:1.2.1",
+    )
+
+  object postinoScodec extends ScalaModule:
+    override def scalaVersion = outer.scalaVersion()
+    override def scalacOptions = outer.scalacOptions()
+    override def sources = Task.Sources(BuildCtx.workspaceRoot / "postino-scodec/src")
+    override def moduleDeps = Seq(outer)
+
+    override def mvnDeps = Seq(
+      mvn"org.scodec::scodec-core:2.3.3",
+    )
+
+    object test extends ScalaTests with TestModule.Munit:
+      override def sources = Task.Sources(BuildCtx.workspaceRoot / "postino-scodec/test/src")
+
+      override def mvnDeps = Seq(
+        mvn"org.scalameta::munit:1.2.1",
+      )

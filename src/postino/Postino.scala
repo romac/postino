@@ -1,0 +1,17 @@
+package postino
+
+object Postino:
+  def encode[A](value: A)(using encoder: Encoder[A]): Either[PostinoError, Array[Byte]] =
+    val out = Writer.empty
+    encoder.encode(value, out).map(_ => out.toByteArray)
+
+  def decode[A](bytes: Array[Byte])(using decoder: Decoder[A]): Either[PostinoError, A] =
+    val in = Reader.from(bytes)
+    decoder
+      .decode(in)
+      .flatMap: value =>
+        if in.remaining == 0 then Right(value)
+        else Left(PostinoError.TrailingBytes(in.remaining))
+
+  def sum[A]: SumCodecBuilder[A] =
+    SumCodecBuilder.empty[A]

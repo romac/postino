@@ -1,0 +1,47 @@
+#!/usr/bin/env sh
+
+set -e
+
+if [ -z "${MILL_VERSION}" ]; then
+  if [ -f ".mill-version" ]; then
+    MILL_VERSION="$(tr '\r' '\n' < .mill-version | head -n 1)"
+  else
+    MILL_VERSION="1.1.5"
+  fi
+fi
+
+MILL_CACHE="${XDG_CACHE_HOME:-${HOME}/.cache}/mill/download"
+MILL_SUFFIX=""
+
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  if [ "$(uname -m 2>/dev/null)" = "arm64" ]; then
+    MILL_SUFFIX="-native-mac-aarch64"
+  else
+    MILL_SUFFIX="-native-mac-amd64"
+  fi
+elif [ "$(uname -s 2>/dev/null | cut -c 1-5)" = "Linux" ]; then
+  if [ "$(uname -m 2>/dev/null)" = "aarch64" ]; then
+    MILL_SUFFIX="-native-linux-aarch64"
+  else
+    MILL_SUFFIX="-native-linux-amd64"
+  fi
+fi
+
+if [ -n "${MILL_SUFFIX}" ] && [ -x "${MILL_CACHE}/${MILL_VERSION}${MILL_SUFFIX}" ]; then
+  exec "${MILL_CACHE}/${MILL_VERSION}${MILL_SUFFIX}" "$@"
+fi
+
+if [ -x "${MILL_CACHE}/${MILL_VERSION}" ]; then
+  exec "${MILL_CACHE}/${MILL_VERSION}" "$@"
+fi
+
+if command -v cs >/dev/null 2>&1; then
+  exec cs launch "com.lihaoyi:mill-dist:${MILL_VERSION}" -- "$@"
+fi
+
+if command -v coursier >/dev/null 2>&1; then
+  exec coursier launch "com.lihaoyi:mill-dist:${MILL_VERSION}" -- "$@"
+fi
+
+echo "Mill ${MILL_VERSION} is not cached and neither cs nor coursier is available." >&2
+exit 1

@@ -1,0 +1,46 @@
+package postino
+
+final case class U16 private (toInt: Int) extends AnyVal:
+  override def toString: String = toInt.toString
+
+object U16:
+  val MaxValue: Int = 0xffff
+
+  def fromInt(value: Int): Either[PostinoError, U16] =
+    if value >= 0 && value <= MaxValue then Right(U16(value))
+    else Left(PostinoError.InvalidUnsignedValue("u16", BigInt(value)))
+
+  def unsafeFromInt(value: Int): U16 =
+    fromInt(value).fold(error => throw new IllegalArgumentException(error.message), identity)
+
+final case class U32 private (toLong: Long) extends AnyVal:
+  override def toString: String = toLong.toString
+
+object U32:
+  val MaxValue: Long = 0xffffffffL
+
+  def fromLong(value: Long): Either[PostinoError, U32] =
+    if value >= 0L && value <= MaxValue then Right(U32(value))
+    else Left(PostinoError.InvalidUnsignedValue("u32", BigInt(value)))
+
+  def unsafeFromLong(value: Long): U32 =
+    fromLong(value).fold(error => throw new IllegalArgumentException(error.message), identity)
+
+final case class U64 private (toBigInt: BigInt):
+  override def toString: String = toBigInt.toString
+
+object U64:
+  val MaxValue: BigInt = (BigInt(1) << 64) - 1
+
+  def fromLong(value: Long): Either[PostinoError, U64] =
+    fromBigInt(BigInt(value))
+
+  def fromBigInt(value: BigInt): Either[PostinoError, U64] =
+    if value >= 0 && value <= MaxValue then Right(U64(value))
+    else Left(PostinoError.InvalidUnsignedValue("u64", value))
+
+  def unsafeFromLong(value: Long): U64 =
+    fromLong(value).fold(error => throw new IllegalArgumentException(error.message), identity)
+
+  def unsafeFromBigInt(value: BigInt): U64 =
+    fromBigInt(value).fold(error => throw new IllegalArgumentException(error.message), identity)
