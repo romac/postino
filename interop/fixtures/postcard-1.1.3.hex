@@ -1,0 +1,19 @@
+bool_true: 01
+byte_minus_one: ff
+i16_minus_two: 03
+i32_300: d8 04
+float_1: 00 00 80 3f
+double_1_5: 00 00 00 00 00 00 f8 3f
+u16_65535: ff ff 03
+u32_4294967295: ff ff ff ff 0f
+u64_18446744073709551615: ff ff ff ff ff ff ff ff ff 01
+string: 07 70 6f 73 74 69 6e 6f
+bytes: 04 de ad be ef
+option_i32_none: 00
+option_i32_some_300: 01 d8 04
+list: 03 02 01 d8 04
+sensor: b4 24 29 03 6c 61 62
+envelope: 07 54 04 72 61 63 6b 03 01 00 02 01 02 6f 6b 03 01 02 03
+enum_ping: 00
+enum_pong: 01 cd d7 02
+enum_data: 02 03 09 08 07

@@ -37,9 +37,15 @@ fn main() {
     print_fixture("byte_minus_one", &-1i8);
     print_fixture("i16_minus_two", &-2i16);
     print_fixture("i32_300", &300i32);
+    print_fixture("float_1", &1.0f32);
+    print_fixture("double_1_5", &1.5f64);
     print_fixture("u16_65535", &u16::MAX);
+    print_fixture("u32_4294967295", &u32::MAX);
+    print_fixture("u64_18446744073709551615", &u64::MAX);
     print_fixture("string", &"postino");
     print_fixture("bytes", &vec![0xde_u8, 0xad, 0xbe, 0xef]);
+    print_fixture("option_i32_none", &None::<i32>);
+    print_fixture("option_i32_some_300", &Some(300i32));
     print_fixture("list", &vec![1i16, -1i16, 300i16]);
     print_fixture(
         "sensor",

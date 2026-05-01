@@ -2,6 +2,8 @@ package postino
 
 import munit.FunSuite
 
+import scala.io.Source
+
 final class PostinoSuite extends FunSuite:
   final case class Sensor(id: U16, temp: Int, label: String) derives Codec
 
@@ -25,92 +27,60 @@ final class PostinoSuite extends FunSuite:
       .variant(2, Codec[Data])
       .build
 
-  test("primitive codecs match Rust postcard bytes"):
-    assertEncoded(true, 0x01)
-    assertEncoded((-1).toByte, 0xff)
-    assertEncoded((-2).toShort, 0x03)
-    assertEncoded(300, 0xd8, 0x04)
-    assertEncoded(1.0f, 0x00, 0x00, 0x80, 0x3f)
-    assertEncoded(1.5d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf8, 0x3f)
-    assertEncoded(U16.unsafeFromInt(0xffff), 0xff, 0xff, 0x03)
-    assertEncoded(U32.unsafeFromLong(0xffffffffL), 0xff, 0xff, 0xff, 0xff, 0x0f)
-    assertEncoded(
-      U64.unsafeFromBigInt(U64.MaxValue),
-      0xff,
-      0xff,
-      0xff,
-      0xff,
-      0xff,
-      0xff,
-      0xff,
-      0xff,
-      0xff,
-      0x01
-    )
+  test("primitive codecs match Rust postcard fixture bytes"):
+    assertFixtureRoundTrip("bool_true", true)
+    assertFixtureRoundTrip("byte_minus_one", (-1).toByte)
+    assertFixtureRoundTrip("i16_minus_two", (-2).toShort)
+    assertFixtureRoundTrip("i32_300", 300)
+    assertFixtureRoundTrip("float_1", 1.0f)
+    assertFixtureRoundTrip("double_1_5", 1.5d)
+    assertFixtureRoundTrip("u16_65535", U16.unsafeFromInt(0xffff))
+    assertFixtureRoundTrip("u32_4294967295", U32.unsafeFromLong(0xffffffffL))
+    assertFixtureRoundTrip("u64_18446744073709551615", U64.unsafeFromBigInt(U64.MaxValue))
 
-  test("strings and byte arrays use usize length prefixes"):
-    assertEncoded("postino", 0x07, 0x70, 0x6f, 0x73, 0x74, 0x69, 0x6e, 0x6f)
-    assertEncoded(
-      Array[Byte](0xde.toByte, 0xad.toByte, 0xbe.toByte, 0xef.toByte),
-      0x04,
-      0xde,
-      0xad,
-      0xbe,
-      0xef
-    )
+  test("strings and byte arrays match Rust postcard fixture bytes"):
+    assertFixtureRoundTrip("string", "postino")
+    assertFixtureEncoded("bytes", Array[Byte](0xde.toByte, 0xad.toByte, 0xbe.toByte, 0xef.toByte))
 
-    assertDecoded[String](
-      bytes(0x07, 0x70, 0x6f, 0x73, 0x74, 0x69, 0x6e, 0x6f),
-      "postino"
-    )
     assertEquals(
-      Postino.decode[Array[Byte]](bytes(0x04, 0xde, 0xad, 0xbe, 0xef)).map(unsigned),
+      Postino.decode[Array[Byte]](fixtureBytes("bytes")).map(unsigned),
       Right(Vector(0xde, 0xad, 0xbe, 0xef))
     )
 
-  test("options and sequences match postcard tags and lengths"):
-    assertEncoded(Option.empty[Int], 0x00)
-    assertEncoded(Option(300), 0x01, 0xd8, 0x04)
-    assertEncoded(List[Short](1, -1, 300), 0x03, 0x02, 0x01, 0xd8, 0x04)
-    assertDecoded[List[Short]](
-      bytes(0x03, 0x02, 0x01, 0xd8, 0x04),
-      List[Short](1, -1, 300)
-    )
+  test("options and sequences match Rust postcard fixture bytes"):
+    assertFixtureRoundTrip("option_i32_none", Option.empty[Int])
+    assertFixtureRoundTrip("option_i32_some_300", Option(300))
+    assertFixtureRoundTrip("list", List[Short](1, -1, 300))
 
   test("case class products encode constructor fields without names or length"):
     val sensor = Sensor(U16.unsafeFromInt(0x1234), -21, "lab")
-    assertEncoded(sensor, 0xb4, 0x24, 0x29, 0x03, 0x6c, 0x61, 0x62)
-    assertDecoded[Sensor](
-      bytes(0xb4, 0x24, 0x29, 0x03, 0x6c, 0x61, 0x62),
-      sensor
-    )
+    assertFixtureRoundTrip("sensor", sensor)
 
   test("nested products decode Rust-generated fixture bytes"):
-    val encoded =
-      bytes(
-        0x07, 0x54, 0x04, 0x72, 0x61, 0x63, 0x6b, 0x03, 0x01, 0x00, 0x02, 0x01, 0x02, 0x6f, 0x6b,
-        0x03, 0x01, 0x02, 0x03
+    val envelope =
+      Envelope(
+        Sensor(U16.unsafeFromInt(7), 42, "rack"),
+        Vector[Short](-1, 0, 1),
+        Some("ok"),
+        Array[Byte](1, 2, 3)
       )
 
-    val decoded = Postino.decode[Envelope](encoded)
+    assertFixtureEncoded("envelope", envelope)
+
+    val decoded = Postino.decode[Envelope](fixtureBytes("envelope"))
     assertEquals(decoded.map(_.sensor), Right(Sensor(U16.unsafeFromInt(7), 42, "rack")))
     assertEquals(decoded.map(_.readings), Right(Vector[Short](-1, 0, 1)))
     assertEquals(decoded.map(_.note), Right(Some("ok")))
     assertEquals(decoded.map(envelope => unsigned(envelope.bytes)), Right(Vector(1, 2, 3)))
 
   test("explicit sums encode and decode u32 discriminants"):
-    assertEncoded[Message](Ping(), 0x00)
-    assertEncoded[Message](Pong(U16.unsafeFromInt(0xabcd)), 0x01, 0xcd, 0xd7, 0x02)
-    assertEncoded[Message](Data(Array[Byte](9, 8, 7)), 0x02, 0x03, 0x09, 0x08, 0x07)
+    assertFixtureRoundTrip[Message]("enum_ping", Ping())
+    assertFixtureRoundTrip[Message]("enum_pong", Pong(U16.unsafeFromInt(0xabcd)))
+    assertFixtureEncoded[Message]("enum_data", Data(Array[Byte](9, 8, 7)))
 
-    assertEquals(Postino.decode[Message](bytes(0x00)), Right(Ping()))
-    assertEquals(
-      Postino.decode[Message](bytes(0x01, 0xcd, 0xd7, 0x02)),
-      Right(Pong(U16.unsafeFromInt(0xabcd)))
-    )
     assertEquals(
       Postino
-        .decode[Message](bytes(0x02, 0x03, 0x09, 0x08, 0x07))
+        .decode[Message](fixtureBytes("enum_data"))
         .map:
           case Data(value) => unsigned(value)
           case other       => fail(s"expected Data, got $other")
@@ -134,11 +104,49 @@ final class PostinoSuite extends FunSuite:
     )
     assertEquals(Postino.decode[Message](bytes(0x7f)), Left(PostinoError.UnknownVariant(127)))
 
-  private def assertEncoded[A](value: A, expected: Int*)(using encoder: Encoder[A]): Unit =
-    assertEquals(Postino.encode(value).map(unsigned), Right(expected.toVector))
+  private lazy val rustFixtures: Map[String, Vector[Int]] =
+    loadRustFixtures()
 
-  private def assertDecoded[A](input: Array[Byte], expected: A)(using decoder: Decoder[A]): Unit =
-    assertEquals(Postino.decode[A](input), Right(expected))
+  private def assertFixtureRoundTrip[A](name: String, value: A)(using codec: Codec[A]): Unit =
+    assertFixtureEncoded(name, value)
+    assertEquals(Postino.decode[A](fixtureBytes(name)), Right(value))
+
+  private def assertFixtureEncoded[A](name: String, value: A)(using encoder: Encoder[A]): Unit =
+    assertEquals(Postino.encode(value).map(unsigned), Right(fixture(name)))
+
+  private def fixture(name: String): Vector[Int] =
+    rustFixtures.getOrElse(name, fail(s"missing Rust postcard fixture '$name'"))
+
+  private def fixtureBytes(name: String): Array[Byte] =
+    fixture(name).map(_.toByte).toArray
+
+  private def loadRustFixtures(): Map[String, Vector[Int]] =
+    val resource =
+      Option(getClass.getClassLoader.getResourceAsStream("postcard-1.1.3.hex"))
+        .getOrElse(fail("missing postcard-1.1.3.hex test resource"))
+
+    val source = Source.fromInputStream(resource, "UTF-8")
+    try
+      source
+        .getLines()
+        .zipWithIndex
+        .foldLeft(Map.empty[String, Vector[Int]]):
+          case (fixtures, (line, index)) =>
+            val parts = line.split(":", 2)
+            if parts.length != 2 then fail(s"invalid fixture line ${index + 1}: $line")
+
+            val name = parts(0).trim
+            val values =
+              parts(1).trim
+                .split("\\s+")
+                .toVector
+                .filter(_.nonEmpty)
+                .map: byte =>
+                  Integer.parseInt(byte, 16)
+
+            if fixtures.contains(name) then fail(s"duplicate Rust postcard fixture '$name'")
+            fixtures.updated(name, values)
+    finally source.close()
 
   private def bytes(values: Int*): Array[Byte] =
     values.map(_.toByte).toArray

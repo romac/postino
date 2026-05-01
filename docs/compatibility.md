@@ -25,3 +25,12 @@ Deferred:
 - CRC
 - streaming flavors
 - Circe integration
+
+## Verification
+
+Normal Scala tests load checked-in Rust postcard fixture bytes from
+`interop/fixtures/postcard-1.1.3.hex`, so `./mill --no-server test` stays fast
+and offline.
+
+Run `./mill --no-server interopTest` to regenerate the fixture stream with the
+Rust `postcard` crate and compare it against the checked-in fixture file.

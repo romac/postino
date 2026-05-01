@@ -26,7 +26,53 @@ object `package` extends ScalaModule with ScalafmtModule:
       scalafmtConfig().head,
     )
 
+  def interopTest() = Task.Command:
+    val fixturePath = BuildCtx.workspaceRoot / "interop/fixtures/postcard-1.1.3.hex"
+    println("Generating Rust postcard fixtures with Cargo...")
+
+    val cargoResult =
+      os.proc(
+        "cargo",
+        "run",
+        "--quiet",
+        "--manifest-path",
+        "interop/rust-fixtures/Cargo.toml",
+      ).call(
+        cwd = BuildCtx.workspaceRoot,
+        stdout = os.Pipe,
+        stderr = os.Pipe,
+        check = false,
+      )
+
+    if cargoResult.exitCode != 0 then
+      Task.fail(
+        s"Rust fixture generator failed with exit code ${cargoResult.exitCode}:\n${cargoResult.err.text()}"
+      )
+
+    val expected = canonicalFixture(os.read(fixturePath))
+    val actual   = canonicalFixture(cargoResult.out.text())
+
+    if actual != expected then
+      os.write.over(Task.dest / "expected.hex", expected)
+      os.write.over(Task.dest / "actual.hex", actual)
+      Task.fail(
+        s"Rust postcard fixtures differ. See ${Task.dest / "expected.hex"} and ${Task.dest / "actual.hex"}."
+      )
+
+    val fixtureCount = actual.linesIterator.count(_.nonEmpty)
+    println(s"Compared $fixtureCount Rust postcard fixtures against $fixturePath")
+    println("Rust postcard compatibility check passed.")
+
+  private def canonicalFixture(text: String): String =
+    text.replace("\r\n", "\n").stripTrailing + "\n"
+
   object test extends ScalaTests with TestModule.Munit:
+    def rustFixtureResources = Task.Sources(BuildCtx.workspaceRoot / "interop/fixtures")
+
+    override def resources = Task {
+      super.resources() ++ rustFixtureResources()
+    }
+
     override def mvnDeps = Seq(
       mvn"org.scalameta::munit:1.2.1",
     )
