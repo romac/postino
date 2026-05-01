@@ -1,7 +1,7 @@
 package postino
 
 import scala.annotation.tailrec
-import scala.compiletime.{erasedValue, error, summonInline}
+import scala.compiletime.{erasedValue, error}
 import scala.deriving.Mirror
 import scala.reflect.ClassTag
 import scala.util.control.NonFatal
@@ -283,12 +283,12 @@ trait LowPriorityCodecs:
 
 private[postino] object ProductCodecs:
   inline def derivedProduct[A](mirror: Mirror.ProductOf[A]): Codec[A] =
-    val fieldCodecs = summonCodecs[mirror.MirroredElemTypes]
+    val fieldCodecs = IArray.from(summonCodecs[mirror.MirroredElemTypes])
     productCodec(mirror, fieldCodecs)
 
   private def productCodec[A](
       mirror: Mirror.ProductOf[A],
-      fieldCodecs: List[Codec[Any]]
+      fieldCodecs: IArray[Codec[Any]]
   ): Codec[A] =
     new Codec[A]:
       def encode(value: A, out: Writer): Either[PostinoError, Unit] =
@@ -296,17 +296,20 @@ private[postino] object ProductCodecs:
 
       def decode(in: Reader): Either[PostinoError, A] =
         decodeFields(fieldCodecs, in).map: values =>
-          mirror.fromProduct(Tuple.fromArray(values.toArray))
+          mirror.fromProduct(Tuple.fromArray(values))
 
   private inline def summonCodecs[Fields <: Tuple]: List[Codec[Any]] =
     inline erasedValue[Fields] match
       case _: EmptyTuple => Nil
       case _: (field *: rest) =>
-        summonInline[Codec[field]].asInstanceOf[Codec[Any]] :: summonCodecs[rest]
+        summonFieldCodec[field].asInstanceOf[Codec[Any]] :: summonCodecs[rest]
+
+  private inline def summonFieldCodec[A]: Codec[A] =
+    ${ Macros.summonFieldCodec[A] }
 
   private def encodeFields(
       product: Product,
-      fieldCodecs: List[Codec[Any]],
+      fieldCodecs: IArray[Codec[Any]],
       out: Writer
   ): Either[PostinoError, Unit] =
     var index = 0
@@ -317,14 +320,16 @@ private[postino] object ProductCodecs:
     Right(())
 
   private def decodeFields(
-      fieldCodecs: List[Codec[Any]],
+      fieldCodecs: IArray[Codec[Any]],
       in: Reader
-  ): Either[PostinoError, List[Any]] =
-    val builder   = List.newBuilder[Any]
-    var remaining = fieldCodecs
-    while remaining.nonEmpty do
-      remaining.head.decode(in) match
-        case Right(value) => builder += value
-        case Left(error)  => return Left(error)
-      remaining = remaining.tail
-    Right(builder.result())
+  ): Either[PostinoError, Array[Any]] =
+    val length = fieldCodecs.length
+    val values = new Array[Any](length)
+    var index  = 0
+    while index < length do
+      fieldCodecs(index).decode(in) match
+        case Right(value) =>
+          values(index) = value
+          index += 1
+        case Left(error) => return Left(error)
+    Right(values)
