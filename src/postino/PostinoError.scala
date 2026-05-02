@@ -36,3 +36,8 @@ object PostinoError:
 
   final case class UnmatchedVariant(runtimeClass: String) extends PostinoError:
     def message = s"no enum variant registered for $runtimeClass"
+
+  final case class AmbiguousVariant(runtimeClass: String, discriminants: Vector[Long])
+      extends PostinoError:
+    def message =
+      s"multiple enum variants match $runtimeClass: ${discriminants.mkString(", ")}"

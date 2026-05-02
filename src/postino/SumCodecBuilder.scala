@@ -28,14 +28,21 @@ final class SumCodecBuilder[A] private (variants: Vector[SumCodecBuilder.Entry[A
 
     new Codec[A]:
       def encode(value: A, out: Writer): Either[PostinoError, Unit] =
-        variants.find(_.matches(value)) match
-          case Some(variant) =>
-            for
-              _ <- Varint.writeUnsigned(BigInt(variant.discriminant), 32, "u32", out)
-              _ <- variant.encode(value, out)
-            yield ()
-          case None =>
-            Left(PostinoError.UnmatchedVariant(value.getClass.getName))
+        val matched = variants.filter(_.matches(value))
+        if matched.isEmpty then Left(PostinoError.UnmatchedVariant(value.getClass.getName))
+        else if matched.size == 1 then
+          val variant = matched.head
+          for
+            _ <- Varint.writeUnsigned(BigInt(variant.discriminant), 32, "u32", out)
+            _ <- variant.encode(value, out)
+          yield ()
+        else
+          Left(
+            PostinoError.AmbiguousVariant(
+              value.getClass.getName,
+              matched.map(_.discriminant)
+            )
+          )
 
       def decode(in: Reader): Either[PostinoError, A] =
         Varint

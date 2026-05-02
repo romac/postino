@@ -88,6 +88,29 @@ final class PostinoSuite extends FunSuite:
       Right(Vector(9, 8, 7))
     )
 
+  test("explicit sums reject ambiguous runtime variant matches"):
+    sealed trait Overlap
+    final case class Specific(value: Int) extends Overlap derives Codec
+
+    val overlapCodec = new Codec[Overlap]:
+      def encode(value: Overlap, out: Writer): Either[PostinoError, Unit] =
+        Right(())
+
+      def decode(in: Reader): Either[PostinoError, Overlap] =
+        Left(PostinoError.UnexpectedEnd)
+
+    val codec =
+      Postino
+        .sum[Overlap]
+        .variant(0, overlapCodec)
+        .variant(1, Codec[Specific])
+        .build
+
+    assertEquals(
+      Postino.encode[Overlap](Specific(42))(using codec),
+      Left(PostinoError.AmbiguousVariant(classOf[Specific].getName, Vector(0L, 1L)))
+    )
+
   test("top-level decode rejects trailing bytes"):
     assertEquals(
       Postino.decode[Boolean](bytes(0x01, 0x00)),
