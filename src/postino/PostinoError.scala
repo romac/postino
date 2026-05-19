@@ -36,8 +36,8 @@ object PostinoError:
   final case class InvalidUtf8(reason: String) extends PostinoError:
     def message = s"invalid UTF-8 string: $reason"
 
-  final case class TrailingBytes(count: Int) extends PostinoError:
-    def message = s"$count trailing byte(s) after decoded value"
+  final case class TrailingBytes(count: Int, offset: Int) extends PostinoError:
+    def message = s"$count trailing byte(s) starting at offset $offset"
 
   final case class InvalidUnsignedValue(target: String, value: BigInt) extends PostinoError:
     def message = s"value $value is outside $target"

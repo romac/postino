@@ -17,7 +17,7 @@ object Postino:
       .decode(in)
       .flatMap: value =>
         if in.remaining == 0 then Right(value)
-        else Left(PostinoError.TrailingBytes(in.remaining))
+        else Left(PostinoError.TrailingBytes(in.remaining, in.position))
 
   def sum[A]: SumCodecBuilder[A] =
     SumCodecBuilder.empty[A]

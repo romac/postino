@@ -45,7 +45,7 @@ Encoding and decoding return `Either[PostinoError, A]`. Top-level decode rejects
 
 ```scala
 Postino.decode[Boolean](Array(0x01.toByte, 0x00.toByte))
-// Left(PostinoError.TrailingBytes(1))
+// Left(PostinoError.TrailingBytes(1, 1))
 ```
 
 ## Deriving Product Codecs

@@ -173,7 +173,7 @@ final class PostinoSuite extends FunSuite:
   test("top-level decode rejects trailing bytes"):
     assertEquals(
       Postino.decode[Boolean](bytes(0x01, 0x00)),
-      Left(PostinoError.TrailingBytes(1))
+      Left(PostinoError.TrailingBytes(1, 1))
     )
 
   test("invalid primitive tags and varints report structured errors"):
