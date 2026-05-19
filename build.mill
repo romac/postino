@@ -2,10 +2,39 @@ package build
 
 import mill.*, scalalib.*
 import mill.api.BuildCtx
+import mill.javalib.publish.*
 import mill.scalalib.scalafmt.ScalafmtModule
 
-object `package` extends ScalaModule with ScalafmtModule:
+trait PostinoPublishModule extends ScalaModule with mill.javalib.SonatypeCentralPublishModule:
+  def publishVersion: T[String] = Task.Input:
+    Task.env.getOrElse("POSTINO_VERSION", "0.1.0-SNAPSHOT")
+
+  def postinoGroupId: T[String] = Task.Input:
+    Task.env.getOrElse("POSTINO_GROUP_ID", "me.romac")
+
+  def pomSettings: T[PomSettings] = Task:
+    PomSettings(
+      description = "Scala 3 implementation of the Rust postcard 1.x non-COBS wire format.",
+      organization = postinoGroupId(),
+      url = "https://github.com/romac/postino",
+      licenses = Seq.empty,
+      versionControl = VersionControl(
+        browsableRepository = Some("https://github.com/romac/postino"),
+        connection = Some("scm:git:https://github.com/romac/postino.git"),
+        developerConnection = Some("scm:git:ssh://git@github.com/romac/postino.git"),
+      ),
+      developers = Seq(
+        Developer(id = "romac", name = "romac")
+      ),
+    )
+
+  def versionScheme: T[Option[VersionScheme]] = Task:
+    Some(VersionScheme.EarlySemVer)
+
+object `package` extends PostinoPublishModule with ScalafmtModule:
   outer =>
+
+  override def artifactName = "postino"
 
   override def scalaVersion = "3.8.3"
 
@@ -77,9 +106,12 @@ object `package` extends ScalaModule with ScalafmtModule:
       mvn"org.scalameta::munit:1.2.1",
     )
 
-  object postinoScodec extends ScalaModule:
+  object postinoScodec extends PostinoPublishModule:
+    override def artifactName = "postino-scodec"
     override def scalaVersion = outer.scalaVersion()
     override def scalacOptions = outer.scalacOptions()
+    override def publishVersion = outer.publishVersion()
+    override def postinoGroupId = outer.postinoGroupId()
     override def sources = Task.Sources(BuildCtx.workspaceRoot / "postino-scodec/src")
     override def moduleDeps = Seq(outer)
 

@@ -18,8 +18,11 @@ Postino is intentionally small:
 - no Serde attribute support
 - optional scodec adapter in a separate Mill module
 
-There is no publishing setup in this repository yet. Use the source checkout or
-add publish metadata before depending on it from another build.
+Mill publishing metadata is configured for local Maven/Ivy publishing and
+Sonatype Central release tasks. The default development coordinates are
+`me.romac::postino:0.1.0-SNAPSHOT` and
+`me.romac::postino-scodec:0.1.0-SNAPSHOT`; set `POSTINO_GROUP_ID` and
+`POSTINO_VERSION` when publishing under different coordinates.
 
 ## Modules
 
@@ -55,6 +58,38 @@ fixture file:
 ```
 
 That command requires a working Rust toolchain and Cargo.
+
+## Publishing
+
+The core and scodec modules both expose Mill publish tasks.
+
+Default local coordinates:
+
+```scala
+ivy"me.romac::postino:0.1.0-SNAPSHOT"
+ivy"me.romac::postino-scodec:0.1.0-SNAPSHOT"
+```
+
+Publish both modules to a local Maven repository path:
+
+```text
+./mill --no-server publishM2Local --m2RepoPath out/local-m2
+./mill --no-server postinoScodec.publishM2Local --m2RepoPath out/local-m2
+```
+
+Publish with release coordinates:
+
+```text
+POSTINO_GROUP_ID=me.romac POSTINO_VERSION=0.1.0 \
+  ./mill --no-server publishM2Local --m2RepoPath out/local-m2
+
+POSTINO_GROUP_ID=me.romac POSTINO_VERSION=0.1.0 \
+  ./mill --no-server postinoScodec.publishM2Local --m2RepoPath out/local-m2
+```
+
+`publishLocal` publishes to the local Ivy repository. `publishSonatypeCentral`
+is available on each module for a real Central release once credentials, PGP
+signing, and project license metadata are in place.
 
 ## Core API
 

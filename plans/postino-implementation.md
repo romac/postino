@@ -242,7 +242,10 @@ tooling, not wire encoding.
 
 ### M5: Documentation And Publishing
 
+Status: complete as of 2026-05-19.
+
 - README examples
 - compatibility note
 - unsupported-feature list
-- publish setup
+- publish setup through Mill `publishLocal`, `publishM2Local`, and
+  `publishSonatypeCentral` tasks for the core and scodec modules
