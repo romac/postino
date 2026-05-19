@@ -128,20 +128,29 @@ final class PostinoSuite extends FunSuite:
 
   test("explicit sums reject ambiguous runtime variant matches"):
     sealed trait Overlap
-    final case class Specific(value: Int) extends Overlap derives Codec
+    trait LeftOverlap                     extends Overlap
+    trait RightOverlap                    extends Overlap
+    final case class Specific(value: Int) extends LeftOverlap with RightOverlap derives Codec
 
-    val overlapCodec = new Codec[Overlap]:
-      def encode(value: Overlap, out: Writer): Either[PostinoError, Unit] =
+    val leftCodec = new Codec[LeftOverlap]:
+      def encode(value: LeftOverlap, out: Writer): Either[PostinoError, Unit] =
         Right(())
 
-      def decode(in: Reader): Either[PostinoError, Overlap] =
+      def decode(in: Reader): Either[PostinoError, LeftOverlap] =
+        Left(PostinoError.UnexpectedEnd)
+
+    val rightCodec = new Codec[RightOverlap]:
+      def encode(value: RightOverlap, out: Writer): Either[PostinoError, Unit] =
+        Right(())
+
+      def decode(in: Reader): Either[PostinoError, RightOverlap] =
         Left(PostinoError.UnexpectedEnd)
 
     val codec =
       Postino
         .sum[Overlap]
-        .variant(0, overlapCodec)
-        .variant(1, Codec[Specific])
+        .variant(0, leftCodec)
+        .variant(1, rightCodec)
         .build
 
     assertEquals(

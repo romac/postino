@@ -26,10 +26,20 @@ final class SumCodecBuilder[A] private (variants: Vector[SumCodecBuilder.Entry[A
     duplicate.foreach: discriminant =>
       throw IllegalArgumentException(s"duplicate Postino enum discriminant $discriminant")
 
+    val byRuntimeClass = variants.groupBy(_.runtimeClass)
+    val byDiscriminant = variants.map(variant => variant.discriminant -> variant).toMap
+
+    def matchingVariants(value: A): Vector[SumCodecBuilder.Entry[A]] =
+      if value == null then Vector.empty
+      else byRuntimeClass.getOrElse(value.getClass, variants.filter(_.matches(value)))
+
+    def runtimeClassName(value: A): String =
+      if value == null then "null" else value.getClass.getName
+
     new Codec[A]:
       def encode(value: A, out: Writer): Either[PostinoError, Unit] =
-        val matched = variants.filter(_.matches(value))
-        if matched.isEmpty then Left(PostinoError.UnmatchedVariant(value.getClass.getName))
+        val matched = matchingVariants(value)
+        if matched.isEmpty then Left(PostinoError.UnmatchedVariant(runtimeClassName(value)))
         else if matched.size == 1 then
           val variant = matched.head
           for
@@ -39,8 +49,8 @@ final class SumCodecBuilder[A] private (variants: Vector[SumCodecBuilder.Entry[A
         else
           Left(
             PostinoError.AmbiguousVariant(
-              value.getClass.getName,
-              matched.map(_.discriminant)
+              runtimeClassName(value),
+              matched.map(_.discriminant).sorted
             )
           )
 
@@ -48,7 +58,7 @@ final class SumCodecBuilder[A] private (variants: Vector[SumCodecBuilder.Entry[A
         Varint
           .readUnsigned(in, 32, "u32")
           .flatMap: discriminant =>
-            variants.find(_.discriminant == discriminant.toLong) match
+            byDiscriminant.get(discriminant.toLong) match
               case Some(variant) => variant.decode(in)
               case None          => Left(PostinoError.UnknownVariant(discriminant.toLong))
 
@@ -61,6 +71,9 @@ object SumCodecBuilder:
       codec: Codec[B],
       classTag: ClassTag[B]
   ) extends SumCodecBuilder.Entry[A]:
+    def runtimeClass: Class[?] =
+      classTag.runtimeClass
+
     def matches(value: A): Boolean =
       classTag.runtimeClass.isInstance(value)
 
@@ -72,6 +85,7 @@ object SumCodecBuilder:
 
   private trait Entry[A]:
     def discriminant: Long
+    def runtimeClass: Class[?]
     def matches(value: A): Boolean
     def encode(value: A, out: Writer): Either[PostinoError, Unit]
     def decode(in: Reader): Either[PostinoError, A]
