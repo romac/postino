@@ -42,6 +42,10 @@ object PostinoError:
   final case class ProductConstructionFailed(product: String, reason: String) extends PostinoError:
     def message = s"failed to construct $product: $reason"
 
+  final case class ProductFieldFailed(product: String, field: String, cause: PostinoError)
+      extends PostinoError:
+    def message = s"failed to decode $product.$field: ${cause.message}"
+
   final case class UnknownVariant(discriminant: Long) extends PostinoError:
     def message = s"unknown enum discriminant $discriminant"
 

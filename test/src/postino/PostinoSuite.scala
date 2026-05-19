@@ -103,6 +103,14 @@ final class PostinoSuite extends FunSuite:
       )
     )
 
+  test("derived product decode reports the failing field name"):
+    final case class Flags(left: Boolean, right: Boolean) derives Codec
+
+    assertEquals(
+      Postino.decode[Flags](bytes(0x01, 0x02)),
+      Left(PostinoError.ProductFieldFailed("Flags", "right", PostinoError.InvalidBoolean(2)))
+    )
+
   test("explicit sums encode and decode u32 discriminants"):
     assertFixtureRoundTrip[Message]("enum_ping", Ping())
     assertFixtureRoundTrip[Message]("enum_pong", Pong(U16.unsafeFromInt(0xabcd)))

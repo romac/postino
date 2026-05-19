@@ -287,11 +287,13 @@ private[postino] object ProductCodecs:
   inline def derivedProduct[A](mirror: Mirror.ProductOf[A]): Codec[A] =
     val productName = constValue[mirror.MirroredLabel].toString
     val fieldCodecs = IArray.from(summonCodecs[mirror.MirroredElemTypes])
-    productCodec(mirror, productName, fieldCodecs)
+    val fieldNames  = IArray.from(summonLabels[mirror.MirroredElemLabels])
+    productCodec(mirror, productName, fieldNames, fieldCodecs)
 
   private def productCodec[A](
       mirror: Mirror.ProductOf[A],
       productName: String,
+      fieldNames: IArray[String],
       fieldCodecs: IArray[Codec[Any]]
   ): Codec[A] =
     new Codec[A]:
@@ -299,8 +301,14 @@ private[postino] object ProductCodecs:
         encodeFields(value.asInstanceOf[Product], fieldCodecs, out)
 
       def decode(in: Reader): Either[PostinoError, A] =
-        decodeFields(fieldCodecs, in)
+        decodeFields(productName, fieldNames, fieldCodecs, in)
           .flatMap(values => constructProduct(mirror, productName, values))
+
+  private inline def summonLabels[Labels <: Tuple]: List[String] =
+    inline erasedValue[Labels] match
+      case _: EmptyTuple => Nil
+      case _: (label *: rest) =>
+        constValue[label].toString :: summonLabels[rest]
 
   private inline def summonCodecs[Fields <: Tuple]: List[Codec[Any]] =
     inline erasedValue[Fields] match
@@ -335,6 +343,8 @@ private[postino] object ProductCodecs:
     Right(())
 
   private def decodeFields(
+      productName: String,
+      fieldNames: IArray[String],
       fieldCodecs: IArray[Codec[Any]],
       in: Reader
   ): Either[PostinoError, Array[Any]] =
@@ -346,5 +356,6 @@ private[postino] object ProductCodecs:
         case Right(value) =>
           values(index) = value
           index += 1
-        case Left(error) => return Left(error)
+        case Left(error) =>
+          return Left(PostinoError.ProductFieldFailed(productName, fieldNames(index), error))
     Right(values)
