@@ -17,6 +17,10 @@ Supported:
 - case classes/products as constructor fields in order, with no field names and no length prefix
 - explicit ADTs/enums as a `u32` varint discriminant followed by the selected payload
 
+Postcard varints are capped LEB128: `u16`, `u32`, and `u64` use at most 3, 5,
+and 10 bytes respectively. The final allowed byte must terminate the varint,
+and payload bits beyond the target width are rejected.
+
 Deferred:
 
 - Serde attributes

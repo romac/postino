@@ -10,8 +10,9 @@
 
 **Sums** (`SumCodecBuilder`):
 - Manual fluent builder. Each `.variant(disc, Codec[B])` appends `(discriminant, codec, ClassTag[B])` to a `Vector`.
-- Encode: filters matching variants using `classTag.runtimeClass.isInstance`; exactly one match is required. Overlapping runtime matches fail with `PostinoError.AmbiguousVariant`.
-- Decode: linear `variants.find(_.discriminant == discriminant.toLong)` (`SumCodecBuilder.scala:44`).
+- Build: rejects duplicate discriminants, then precomputes a runtime-class lookup for encode and a discriminant lookup for decode.
+- Encode: first checks exact `value.getClass` registrations. If none exist, it falls back to `classTag.runtimeClass.isInstance`; exactly one match is required. Overlapping fallback matches fail with `PostinoError.AmbiguousVariant`.
+- Decode: looks up the decoded `u32` discriminant in the precomputed map.
 - Duplicate-discriminant check is at runtime in `.build` (throws `IllegalArgumentException`).
 
 ## How borer differs
