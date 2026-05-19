@@ -1,10 +1,10 @@
 package postino
 
-import scala.collection.mutable.ArrayBuffer
+import java.io.ByteArrayOutputStream
 
-final class Writer private (private val bytes: ArrayBuffer[Byte]):
+final class Writer private (private val bytes: ByteArrayOutputStream):
   def writeByte(value: Byte): Either[PostinoError, Unit] =
-    bytes += value
+    bytes.write(value & 0xff)
     Right(())
 
   def writeUnsignedByte(value: Int): Either[PostinoError, Unit] =
@@ -12,12 +12,12 @@ final class Writer private (private val bytes: ArrayBuffer[Byte]):
     else writeByte(value.toByte)
 
   def writeBytes(values: Array[Byte]): Either[PostinoError, Unit] =
-    bytes ++= values
+    bytes.writeBytes(values)
     Right(())
 
   def toByteArray: Array[Byte] =
-    bytes.toArray
+    bytes.toByteArray
 
 object Writer:
   def empty: Writer =
-    new Writer(ArrayBuffer.empty)
+    new Writer(ByteArrayOutputStream())
