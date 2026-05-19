@@ -1,8 +1,8 @@
 # Postino
 
-Postino is a Scala 3 implementation of the Rust [`postcard`](https://docs.rs/postcard) 1.x non-COBS wire format.
+Postino is a Scala 3 implementation of the Rust [`postcard`](https://docs.rs/postcard) 1.x wire format.
 
-It is useful when a Scala program needs to read or write bytes compatible with Rust `postcard::to_stdvec` for a known schema. The format is not self-describing: both sides must agree on field order, enum discriminants, and supported types.
+It is useful when a Scala program needs to read or write bytes compatible with Rust `postcard::to_stdvec`, `postcard::to_stdvec_cobs`, or postcard's CRC flavor for a known schema. The format is not self-describing: both sides must agree on field order, enum discriminants, and supported types.
 
 The supported wire-format boundary is documented in [docs/compatibility.md](docs/compatibility.md).
 
@@ -47,6 +47,30 @@ Encoding and decoding return `Either[PostinoError, A]`. Top-level decode rejects
 Postino.decode[Boolean](Array(0x01.toByte, 0x00.toByte))
 // Left(PostinoError.TrailingBytes(1, 1))
 ```
+
+## Framing
+
+Use `Postino.encodeCobs` and `Postino.decodeCobs` for postcard COBS frames. COBS decoding expects a complete frame with a final `0x00` terminator and rejects zero bytes before that terminator.
+
+```scala
+val roundTrip: Either[PostinoError, Int] =
+  for
+    framed <- Postino.encodeCobs(300)
+    decoded <- Postino.decodeCobs[Int](framed)
+  yield decoded
+```
+
+Use `Postino.encodeCrc` and `Postino.decodeCrc` for postcard's trailing-CRC flavor. The default `Crc` is `Crc.Crc32Fast`, compatible with CRC-32/ISO-HDLC.
+
+```scala
+val crcRoundTrip: Either[PostinoError, Int] =
+  for
+    framed <- Postino.encodeCrc(300)
+    decoded <- Postino.decodeCrc[Int](framed)
+  yield decoded
+```
+
+Pass an explicit `Crc` or provide a `given Crc` when a schema uses a different CRC-32 polynomial.
 
 ## Deriving Product Codecs
 
@@ -206,8 +230,6 @@ The adapter reports `SizeBound.unknown`, requires byte-aligned input, returns th
 
 Postino v0 does not support:
 
-- COBS
-- CRC
 - streaming flavors
 - Serde attributes
 - schema evolution

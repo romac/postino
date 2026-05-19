@@ -1,3 +1,4 @@
+use crc::{Crc, CRC_32_ISO_HDLC};
 use serde::{Serialize, Serializer};
 use std::collections::BTreeMap;
 
@@ -47,6 +48,21 @@ impl Serialize for WideMessage {
 
 fn print_fixture<T: Serialize>(name: &str, value: &T) {
     let bytes = postcard::to_stdvec(value).unwrap();
+    print_bytes(name, &bytes);
+}
+
+fn print_cobs_fixture<T: Serialize>(name: &str, value: &T) {
+    let bytes = postcard::to_stdvec_cobs(value).unwrap();
+    print_bytes(name, &bytes);
+}
+
+fn print_crc_fixture<T: Serialize>(name: &str, value: &T) {
+    let crc = Crc::<u32>::new(&CRC_32_ISO_HDLC);
+    let bytes = postcard::to_stdvec_crc32(value, crc.digest()).unwrap();
+    print_bytes(name, &bytes);
+}
+
+fn print_bytes(name: &str, bytes: &[u8]) {
     let hex = bytes
         .iter()
         .map(|byte| format!("{byte:02x}"))
@@ -87,6 +103,22 @@ fn main() {
     );
     print_fixture(
         "sensor",
+        &Sensor {
+            id: 0x1234,
+            temp: -21,
+            label: "lab",
+        },
+    );
+    print_cobs_fixture(
+        "sensor_cobs",
+        &Sensor {
+            id: 0x1234,
+            temp: -21,
+            label: "lab",
+        },
+    );
+    print_crc_fixture(
+        "sensor_crc32",
         &Sensor {
             id: 0x1234,
             temp: -21,

@@ -42,6 +42,19 @@ object PostinoError:
   final case class TrailingBytes(count: Int, offset: Int) extends PostinoError:
     def message = s"$count trailing byte(s) starting at offset $offset"
 
+  final case class CobsFraming(reason: String) extends PostinoError:
+    def message = s"invalid COBS frame: $reason"
+
+  final case class CobsZeroInPayload(offset: Int) extends PostinoError:
+    def message = s"COBS frame contains zero byte before terminator at offset $offset"
+
+  final case class CrcPayloadTooShort(length: Int, checksumLength: Int) extends PostinoError:
+    def message =
+      s"CRC payload has $length byte(s), but checksum requires $checksumLength byte(s)"
+
+  final case class CrcMismatch(expected: Vector[Int], actual: Vector[Int]) extends PostinoError:
+    def message = s"CRC mismatch: expected ${hex(expected)}, got ${hex(actual)}"
+
   final case class InvalidUnsignedValue(target: String, value: BigInt) extends PostinoError:
     def message = s"value $value is outside $target"
 
@@ -62,3 +75,6 @@ object PostinoError:
       extends PostinoError:
     def message =
       s"multiple enum variants match $runtimeClass: ${discriminants.mkString(", ")}"
+
+  private def hex(bytes: Vector[Int]): String =
+    bytes.map(byte => f"$byte%02x").mkString(" ")

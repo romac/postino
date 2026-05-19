@@ -2,7 +2,7 @@
 
 ## Project
 
-Postino is a Scala 3 implementation of the Rust [`postcard`](https://docs.rs/postcard) 1.x non-COBS wire format. v0 prioritizes byte-for-byte wire compatibility with `postcard::to_stdvec` over ecosystem integration. The supported feature subset is defined in `docs/compatibility.md` — treat that file as the spec, and update it when expanding the boundary.
+Postino is a Scala 3 implementation of the Rust [`postcard`](https://docs.rs/postcard) 1.x wire format. v0 prioritizes byte-for-byte wire compatibility with `postcard::to_stdvec` and the supported framing flavors over ecosystem integration. The supported feature subset is defined in `docs/compatibility.md` — treat that file as the spec, and update it when expanding the boundary.
 
 ## Build & Common Commands
 
@@ -33,7 +33,9 @@ Keep the core dependency-light. New ecosystem integrations (scodec, future Circe
 
 The encode/decode pipeline is intentionally small and `Either`-based — there are no exceptions on the happy path, no streaming, and no implicit resource management.
 
-- `Postino.encode` / `Postino.decode` are the entry points. Top-level decode rejects trailing bytes (`PostinoError.TrailingBytes`).
+- `Postino.encode` / `Postino.decode` are the raw postcard entry points. Top-level decode rejects trailing bytes (`PostinoError.TrailingBytes`).
+- `Postino.encodeCobs` / `Postino.decodeCobs` wrap the raw payload with postcard COBS framing. Decode expects a full frame with the final zero terminator and rejects earlier zero bytes.
+- `Postino.encodeCrc` / `Postino.decodeCrc` wrap the raw payload with postcard's trailing CRC flavor. `Crc.Crc32Fast` is the default CRC-32/ISO-HDLC implementation; pass a `Crc` explicitly for other CRC-32 flavors.
 - `Writer` (mutable byte buffer) and `Reader` (cursor over `Array[Byte]`) are the only I/O primitives. Every read/write returns `Either[PostinoError, _]`.
 - `Codec[A] = Encoder[A] with Decoder[A]`. `Codec.derived` works for product types via Scala 3 `Mirror.ProductOf` (constructor fields in order, no field names, no length prefix — matches Rust struct layout).
 - `Codec.derived` also works for sealed traits/enums in the declaration-order case: `Mirror.SumOf` children are assigned `u32` discriminants `0..n-1`. Use `Postino.sum[A].variant(discriminant, codec).build` for `#[repr]`, serde tags, sparse discriminants, or any schema where Scala declaration order does not exactly match Rust.

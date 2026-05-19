@@ -1,7 +1,7 @@
 # Postino v0 Compatibility Boundary
 
-Postino v0 targets the Rust `postcard` 1.x non-COBS wire format produced by
-`postcard::to_stdvec`.
+Postino v0 targets the Rust `postcard` 1.x wire format produced by
+`postcard::to_stdvec`, plus the COBS and CRC framing flavors.
 
 Supported:
 
@@ -20,6 +20,8 @@ Supported:
 - maps as `varint(usize)` length followed by key/value pairs
 - case classes/products as constructor fields in order, with no field names and no length prefix
 - ADTs/enums as a `u32` varint discriminant followed by the selected payload
+- COBS frames produced by `postcard::to_stdvec_cobs`, including the final zero terminator
+- CRC frames with a trailing little-endian checksum over the encoded payload
 
 Postcard varints are capped LEB128: `u16`, `u32`, `u64`, and `u128` use at most
 3, 5, 10, and 19 bytes respectively. The final allowed byte must terminate the varint,
@@ -34,12 +36,18 @@ Derived sum codecs assign enum discriminants in Scala declaration order (`0..n-1
 Use `Postino.sum[A].variant(...).build` when the Rust enum uses custom, sparse, or
 non-declaration-order discriminants.
 
+COBS decode expects one complete frame and is stricter than a stream parser: the
+last byte must be the frame terminator, and any earlier zero byte is rejected as
+`PostinoError.CobsZeroInPayload`.
+
+The default CRC implementation is `Crc.Crc32Fast`, matching CRC-32/ISO-HDLC
+parameters and postcard's little-endian checksum bytes. Callers can pass another
+`Crc` value when their Rust side uses a different CRC flavor.
+
 Deferred:
 
 - Serde attributes
 - schema evolution
-- COBS
-- CRC
 - streaming flavors
 - Circe integration
 

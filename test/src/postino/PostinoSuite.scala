@@ -161,6 +161,60 @@ final class PostinoSuite extends FunSuite:
     val sensor = Sensor(U16.unsafeFromInt(0x1234), -21, "lab")
     assertFixtureRoundTrip("sensor", sensor)
 
+  test("COBS framing matches Rust postcard fixture bytes"):
+    val sensor = Sensor(U16.unsafeFromInt(0x1234), -21, "lab")
+
+    assertEquals(Postino.encodeCobs(false).map(unsigned), Right(Vector(0x01, 0x01, 0x00)))
+    assertEquals(Postino.encodeCobs(sensor).map(unsigned), Right(fixture("sensor_cobs")))
+    assertEquals(Postino.decodeCobs[Sensor](fixtureBytes("sensor_cobs")), Right(sensor))
+
+  test("COBS decode rejects malformed frames"):
+    assertEquals(
+      Postino.decodeCobs[Boolean](bytes(0x02, 0x01)),
+      Left(PostinoError.CobsFraming("missing terminator"))
+    )
+    assertEquals(
+      Postino.decodeCobs[Boolean](bytes(0x02, 0x01, 0x00, 0x00)),
+      Left(PostinoError.CobsZeroInPayload(2))
+    )
+    assertEquals(
+      Postino.decodeCobs[Boolean](bytes(0x05, 0x01, 0x00)),
+      Left(PostinoError.CobsFraming("invalid run length"))
+    )
+
+  test("COBS encoding does not add an empty block after a full non-zero run"):
+    val payload = Array.fill(254)(1.toByte)
+    val frame   = Array(0xff.toByte) ++ payload ++ Array(0.toByte)
+
+    assertEquals(Cobs.encode(payload).map(unsigned), Right(unsigned(frame)))
+    assertEquals(Cobs.decode(frame).map(unsigned), Right(unsigned(payload)))
+
+  test("CRC framing matches Rust postcard fixture bytes"):
+    val sensor = Sensor(U16.unsafeFromInt(0x1234), -21, "lab")
+
+    assertEquals(Postino.encodeCrc(sensor).map(unsigned), Right(fixture("sensor_crc32")))
+    assertEquals(
+      Postino.encodeCrc(Crc.Crc32Fast, sensor).map(unsigned),
+      Right(fixture("sensor_crc32"))
+    )
+    assertEquals(Postino.decodeCrc[Sensor](fixtureBytes("sensor_crc32")), Right(sensor))
+
+  test("CRC decode rejects short and mismatched checksums"):
+    assertEquals(
+      Postino.decodeCrc[Boolean](bytes(0x01, 0x02, 0x03)),
+      Left(PostinoError.CrcPayloadTooShort(3, 4))
+    )
+
+    val corrupted = fixtureBytes("sensor_crc32")
+    corrupted(corrupted.length - 1) = (corrupted.last ^ 0xff).toByte
+
+    val expected = unsigned(Crc.Crc32Fast.checksum(fixtureBytes("sensor")))
+    val actual   = unsigned(corrupted.takeRight(Crc.Crc32Fast.widthBytes))
+    assertEquals(
+      Postino.decodeCrc[Sensor](corrupted),
+      Left(PostinoError.CrcMismatch(expected, actual))
+    )
+
   test("nested products decode Rust-generated fixture bytes"):
     val envelope =
       Envelope(

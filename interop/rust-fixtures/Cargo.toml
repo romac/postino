@@ -5,5 +5,6 @@ edition = "2021"
 publish = false
 
 [dependencies]
-postcard = { version = "1.1", features = ["alloc", "use-std"] }
+crc = "3"
+postcard = { version = "1.1", features = ["alloc", "use-crc", "use-std"] }
 serde = { version = "1", features = ["derive"] }
