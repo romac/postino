@@ -73,6 +73,20 @@ final class PostinoSuite extends FunSuite:
     assertEquals(decoded.map(_.note), Right(Some("ok")))
     assertEquals(decoded.map(envelope => unsigned(envelope.bytes)), Right(Vector(1, 2, 3)))
 
+  test("derived product decode returns an error when the constructor rejects decoded fields"):
+    final case class NonNegative(value: Int) derives Codec:
+      require(value >= 0, "value must be non-negative")
+
+    assertEquals(
+      Postino.decode[NonNegative](bytes(0x01)),
+      Left(
+        PostinoError.ProductConstructionFailed(
+          "NonNegative",
+          "requirement failed: value must be non-negative"
+        )
+      )
+    )
+
   test("explicit sums encode and decode u32 discriminants"):
     assertFixtureRoundTrip[Message]("enum_ping", Ping())
     assertFixtureRoundTrip[Message]("enum_pong", Pong(U16.unsafeFromInt(0xabcd)))

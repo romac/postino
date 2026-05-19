@@ -1,7 +1,7 @@
 package postino
 
 import scala.annotation.tailrec
-import scala.compiletime.{erasedValue, error}
+import scala.compiletime.{constValue, erasedValue, error}
 import scala.deriving.Mirror
 import scala.reflect.ClassTag
 import scala.util.control.NonFatal
@@ -283,11 +283,13 @@ trait LowPriorityCodecs:
 
 private[postino] object ProductCodecs:
   inline def derivedProduct[A](mirror: Mirror.ProductOf[A]): Codec[A] =
+    val productName = constValue[mirror.MirroredLabel].toString
     val fieldCodecs = IArray.from(summonCodecs[mirror.MirroredElemTypes])
-    productCodec(mirror, fieldCodecs)
+    productCodec(mirror, productName, fieldCodecs)
 
   private def productCodec[A](
       mirror: Mirror.ProductOf[A],
+      productName: String,
       fieldCodecs: IArray[Codec[Any]]
   ): Codec[A] =
     new Codec[A]:
@@ -295,8 +297,8 @@ private[postino] object ProductCodecs:
         encodeFields(value.asInstanceOf[Product], fieldCodecs, out)
 
       def decode(in: Reader): Either[PostinoError, A] =
-        decodeFields(fieldCodecs, in).map: values =>
-          mirror.fromProduct(Tuple.fromArray(values))
+        decodeFields(fieldCodecs, in)
+          .flatMap(values => constructProduct(mirror, productName, values))
 
   private inline def summonCodecs[Fields <: Tuple]: List[Codec[Any]] =
     inline erasedValue[Fields] match
@@ -306,6 +308,17 @@ private[postino] object ProductCodecs:
 
   private inline def summonFieldCodec[A]: Codec[A] =
     ${ Macros.summonFieldCodec[A] }
+
+  private def constructProduct[A](
+      mirror: Mirror.ProductOf[A],
+      productName: String,
+      values: Array[Any]
+  ): Either[PostinoError, A] =
+    try Right(mirror.fromProduct(Tuple.fromArray(values)))
+    catch
+      case NonFatal(error) =>
+        val reason = Option(error.getMessage).getOrElse(error.getClass.getName)
+        Left(PostinoError.ProductConstructionFailed(productName, reason))
 
   private def encodeFields(
       product: Product,

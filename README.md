@@ -264,6 +264,7 @@ prefixes larger than that fail with `PostinoError.LengthTooLarge`.
 - `InvalidUtf8`
 - `TrailingBytes`
 - `InvalidUnsignedValue`
+- `ProductConstructionFailed`
 - `UnknownVariant`
 - `UnmatchedVariant`
 - `AmbiguousVariant`

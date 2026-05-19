@@ -31,6 +31,9 @@ object PostinoError:
   final case class InvalidUnsignedValue(target: String, value: BigInt) extends PostinoError:
     def message = s"value $value is outside $target"
 
+  final case class ProductConstructionFailed(product: String, reason: String) extends PostinoError:
+    def message = s"failed to construct $product: $reason"
+
   final case class UnknownVariant(discriminant: Long) extends PostinoError:
     def message = s"unknown enum discriminant $discriminant"
 
