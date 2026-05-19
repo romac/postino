@@ -35,6 +35,8 @@ The build uses Mill.
 - Rust fixture generator: [interop/rust-fixtures](interop/rust-fixtures)
 - Checked-in Rust fixture bytes:
   [interop/fixtures/postcard-1.1.3.hex](interop/fixtures/postcard-1.1.3.hex)
+- Local published artifact example:
+  [examples/local-published](examples/local-published)
 
 ## Build And Test
 
