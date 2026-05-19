@@ -38,6 +38,11 @@ final class PostinoSuite extends FunSuite:
     assertFixtureRoundTrip("u32_4294967295", U32.unsafeFromLong(0xffffffffL))
     assertFixtureRoundTrip("u64_18446744073709551615", U64.unsafeFromBigInt(U64.MaxValue))
 
+  test("U64 constructors distinguish signed values from unsigned bit patterns"):
+    assertEquals(U64.fromLong(-1L), Left(PostinoError.InvalidUnsignedValue("u64", BigInt(-1))))
+    assertEquals(U64.fromUnsignedLong(-1L).toBigInt, U64.MaxValue)
+    assertEquals(U64.fromUnsignedLong(Long.MinValue).toBigInt, BigInt(1) << 63)
+
   test("strings and byte arrays match Rust postcard fixture bytes"):
     assertFixtureRoundTrip("string", "postino")
     assertFixtureEncoded("bytes", Array[Byte](0xde.toByte, 0xad.toByte, 0xbe.toByte, 0xef.toByte))

@@ -32,8 +32,13 @@ final case class U64 private (toBigInt: BigInt):
 object U64:
   val MaxValue: BigInt = (BigInt(1) << 64) - 1
 
+  /** Interprets `value` as a signed JVM Long. Negative values are rejected. */
   def fromLong(value: Long): Either[PostinoError, U64] =
     fromBigInt(BigInt(value))
+
+  /** Interprets `bits` as the two's-complement bit pattern of an unsigned 64-bit value. */
+  def fromUnsignedLong(bits: Long): U64 =
+    U64(unsignedLongToBigInt(bits))
 
   def fromBigInt(value: BigInt): Either[PostinoError, U64] =
     if value >= 0 && value <= MaxValue then Right(U64(value))
@@ -42,5 +47,12 @@ object U64:
   def unsafeFromLong(value: Long): U64 =
     fromLong(value).fold(error => throw new IllegalArgumentException(error.message), identity)
 
+  def unsafeFromUnsignedLong(bits: Long): U64 =
+    fromUnsignedLong(bits)
+
   def unsafeFromBigInt(value: BigInt): U64 =
     fromBigInt(value).fold(error => throw new IllegalArgumentException(error.message), identity)
+
+  private def unsignedLongToBigInt(bits: Long): BigInt =
+    if bits >= 0 then BigInt(bits)
+    else (BigInt(bits >>> 1) << 1) + BigInt(bits & 1L)
