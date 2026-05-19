@@ -19,7 +19,7 @@ Supported:
 - sequences as `varint(usize)` length followed by each element
 - maps as `varint(usize)` length followed by key/value pairs
 - case classes/products as constructor fields in order, with no field names and no length prefix
-- explicit ADTs/enums as a `u32` varint discriminant followed by the selected payload
+- ADTs/enums as a `u32` varint discriminant followed by the selected payload
 
 Postcard varints are capped LEB128: `u16`, `u32`, `u64`, and `u128` use at most
 3, 5, 10, and 19 bytes respectively. The final allowed byte must terminate the varint,
@@ -29,6 +29,10 @@ Postcard maps preserve the encoder-side iteration order on the wire. Rust
 `BTreeMap` encodes in key order; Rust `HashMap` does not provide a stable wire
 order. Postino mirrors this: `Map[K, V]` encodes using the map value's iterator,
 while `SortedMap[K, V]` encodes in its `Ordering[K]` order.
+
+Derived sum codecs assign enum discriminants in Scala declaration order (`0..n-1`).
+Use `Postino.sum[A].variant(...).build` when the Rust enum uses custom, sparse, or
+non-declaration-order discriminants.
 
 Deferred:
 

@@ -23,6 +23,13 @@ enum Message<'a> {
     Data(&'a [u8]),
 }
 
+#[derive(Serialize)]
+enum DerivedMessage<'a> {
+    Ping,
+    Pong { id: u16 },
+    Data(&'a [u8]),
+}
+
 enum WideMessage {
     High,
 }
@@ -102,5 +109,8 @@ fn main() {
     print_fixture("enum_ping", &Message::Ping);
     print_fixture("enum_pong", &Message::Pong { id: 0xabcd });
     print_fixture("enum_data", &Message::Data(&[9, 8, 7]));
+    print_fixture("derived_enum_ping", &DerivedMessage::Ping);
+    print_fixture("derived_enum_pong", &DerivedMessage::Pong { id: 0xabcd });
+    print_fixture("derived_enum_data", &DerivedMessage::Data(&[9, 8, 7]));
     print_fixture("enum_discriminant_128", &WideMessage::High);
 }

@@ -23,6 +23,11 @@ final class PostinoSuite extends FunSuite:
   sealed trait WideMessage
   final case class HighDiscriminant() extends WideMessage derives Codec
 
+  sealed trait DerivedMessage derives Codec
+  final case class DerivedPing()                   extends DerivedMessage derives Codec
+  final case class DerivedPong(id: U16)            extends DerivedMessage derives Codec
+  final case class DerivedData(bytes: Array[Byte]) extends DerivedMessage derives Codec
+
   given Codec[Message] =
     Postino
       .sum[Message]
@@ -209,6 +214,29 @@ final class PostinoSuite extends FunSuite:
           case other       => fail(s"expected Data, got $other")
       ,
       Right(Vector(9, 8, 7))
+    )
+
+  test("derived sums encode and decode declaration-order discriminants"):
+    assertFixtureRoundTrip[DerivedMessage]("derived_enum_ping", DerivedPing())
+    assertFixtureRoundTrip[DerivedMessage](
+      "derived_enum_pong",
+      DerivedPong(U16.unsafeFromInt(0xabcd))
+    )
+    assertFixtureEncoded[DerivedMessage]("derived_enum_data", DerivedData(Array[Byte](9, 8, 7)))
+
+    assertEquals(
+      Postino
+        .decode[DerivedMessage](fixtureBytes("derived_enum_data"))
+        .map:
+          case DerivedData(value) => unsigned(value)
+          case other              => fail(s"expected DerivedData, got $other")
+      ,
+      Right(Vector(9, 8, 7))
+    )
+
+    assertEquals(
+      Postino.decode[DerivedMessage](bytes(0x7f)),
+      Left(PostinoError.UnknownVariant(127))
     )
 
   test("explicit sums reject ambiguous runtime variant matches"):

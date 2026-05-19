@@ -77,28 +77,37 @@ Product encoding matches Rust struct layout:
 
 Derived product decoders catch constructor failures, such as `require(...)`, and return `PostinoError.ProductConstructionFailed`.
 
-## Explicit Sums And Enums
+## Sums And Enums
 
-Sums are not derived automatically. The Rust enum discriminant is part of the wire schema, so each variant must be registered explicitly.
+Sums can derive codecs when Scala declaration order matches Rust enum declaration order.
 
 ```scala
 import postino.*
 
-sealed trait Message
+sealed trait Message derives Codec
 final case class Ping() extends Message derives Codec
 final case class Pong(id: U16) extends Message derives Codec
 final case class Data(bytes: Array[Byte]) extends Message derives Codec
+```
 
-given Codec[Message] =
+Derived sum codecs assign `u32` discriminants in declaration order: `0` for `Ping`, `1` for `Pong`, `2` for `Data`.
+
+Use the explicit builder when the Rust schema uses custom, sparse, or non-declaration-order discriminants.
+
+```scala
+import postino.*
+
+sealed trait WideMessage
+final case class HighDiscriminant() extends WideMessage derives Codec
+
+given Codec[WideMessage] =
   Postino
-    .sum[Message]
-    .variant(0, Codec[Ping])
-    .variant(1, Codec[Pong])
-    .variant(2, Codec[Data])
+    .sum[WideMessage]
+    .variant(128, Codec[HighDiscriminant])
     .build
 ```
 
-Encoding writes a `u32` varint discriminant followed by the selected variant payload. Decoding reads the discriminant and dispatches to the registered codec.
+Encoding writes a `u32` varint discriminant followed by the selected variant payload. Decoding reads the discriminant and dispatches to the derived or registered codec.
 
 Duplicate discriminants fail when `.build` is called. If more than one registered runtime class matches a value during encoding, encoding fails with `PostinoError.AmbiguousVariant`.
 
@@ -126,6 +135,7 @@ The core module includes bidirectional codecs for:
 - `Map[K, V]`
 - `SortedMap[K, V]`
 - case class products via `derives Codec`
+- declaration-order ADTs and enums via `derives Codec`
 - explicit ADTs and enums via `Postino.sum`
 
 Scala has no native unsigned integer types matching Rust `u16`, `u32`, `u64`, and `u128`, so Postino exposes wrappers:
@@ -201,7 +211,6 @@ Postino v0 does not support:
 - streaming flavors
 - Serde attributes
 - schema evolution
-- automatic sum derivation
 - Circe integration
 
 ## License

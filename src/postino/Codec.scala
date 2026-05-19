@@ -2,7 +2,7 @@ package postino
 
 import scala.annotation.tailrec
 import scala.collection.immutable.SortedMap
-import scala.compiletime.{constValue, erasedValue, error}
+import scala.compiletime.{constValue, erasedValue}
 import scala.deriving.Mirror
 import scala.reflect.ClassTag
 import scala.util.control.NonFatal
@@ -32,8 +32,7 @@ object Codec extends LowPriorityCodecs:
   inline def derived[A](using mirror: Mirror.Of[A]): Codec[A] =
     inline mirror match
       case product: Mirror.ProductOf[A] => ProductCodecs.derivedProduct[A](product)
-      case _: Mirror.SumOf[A] =>
-        error("Postino sum codecs must be explicit. Use Postino.sum[A].variant(...).build.")
+      case sum: Mirror.SumOf[A]         => SumCodecs.derivedSum[A](sum)
 
 private[postino] object PrimitiveCodecs:
   given Codec[Unit] with
@@ -530,3 +529,42 @@ private[postino] object ProductCodecs:
         case Left(error) =>
           return Left(PostinoError.ProductFieldFailed(productName, fieldNames(index), error))
     Right(values)
+
+private[postino] object SumCodecs:
+  inline def derivedSum[A](mirror: Mirror.SumOf[A]): Codec[A] =
+    val variantCodecs = IArray.from(summonVariantCodecs[mirror.MirroredElemTypes])
+    sumCodec(mirror, variantCodecs)
+
+  private inline def summonVariantCodecs[Variants <: Tuple]: List[Codec[Any]] =
+    inline erasedValue[Variants] match
+      case _: EmptyTuple => Nil
+      case _: (variant *: rest) =>
+        summonVariantCodec[variant].asInstanceOf[Codec[Any]] :: summonVariantCodecs[rest]
+
+  private inline def summonVariantCodec[A]: Codec[A] =
+    ${ Macros.summonVariantCodec[A] }
+
+  private def sumCodec[A](
+      mirror: Mirror.SumOf[A],
+      variantCodecs: IArray[Codec[Any]]
+  ): Codec[A] =
+    new Codec[A]:
+      def encode(value: A, out: Writer): Either[PostinoError, Unit] =
+        if value == null then Left(PostinoError.UnmatchedVariant("null"))
+        else
+          val ordinal = mirror.ordinal(value)
+          if ordinal < 0 || ordinal >= variantCodecs.length then
+            Left(PostinoError.UnmatchedVariant(value.getClass.getName))
+          else
+            for
+              _ <- Varint.writeUnsigned(BigInt(ordinal), 32, "u32", out)
+              _ <- variantCodecs(ordinal).encode(value.asInstanceOf[Any], out)
+            yield ()
+
+      def decode(in: Reader): Either[PostinoError, A] =
+        Varint
+          .readUnsigned(in, 32, "u32")
+          .flatMap: discriminant =>
+            if discriminant >= 0 && discriminant < variantCodecs.length then
+              variantCodecs(discriminant.toInt).decode(in).map(_.asInstanceOf[A])
+            else Left(PostinoError.UnknownVariant(discriminant.toLong))

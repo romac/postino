@@ -1,0 +1,49 @@
+# AGENTS.md
+
+## Project
+
+Postino is a Scala 3 implementation of the Rust [`postcard`](https://docs.rs/postcard) 1.x non-COBS wire format. v0 prioritizes byte-for-byte wire compatibility with `postcard::to_stdvec` over ecosystem integration. The supported feature subset is defined in `docs/compatibility.md` — treat that file as the spec, and update it when expanding the boundary.
+
+## Build & Common Commands
+
+The build tool is **Mill** (not sbt). A launcher script lives at `./mill`. Always pass `--no-server` to keep runs hermetic.
+
+- Compile: `./mill --no-server compile`
+- Run all tests (core + scodec adapter): `./mill --no-server __.test`
+- Run only core tests: `./mill --no-server test`
+- Run only scodec adapter tests: `./mill --no-server postinoScodec.test`
+- Run a single test by name (MUnit): `./mill --no-server test.testOnly -- '*<substring>*'`
+- Format Scala sources: `./mill --no-server fmt`
+- Regenerate Rust fixtures and diff against `interop/fixtures/postcard-1.1.3.hex`: `./mill --no-server interopTest` (requires a working `cargo`)
+
+Normal test runs read the checked-in hex fixture file, so they stay offline. `interopTest` is the only task that shells out to Cargo.
+
+## Module Layout
+
+Two Mill modules in `build.mill`:
+
+- root (`.`) — the core library. Sources in `src/postino/`, tests in `test/src/postino/`. No third-party deps beyond MUnit (test-only).
+- `postinoScodec` — optional adapter that wraps a `postino.Codec[A]` as a `scodec.Codec[A]`. Sources in `postino-scodec/src/`, tests in `postino-scodec/test/src/`. Depends on the core module and `org.scodec::scodec-core`.
+
+Keep the core dependency-light. New ecosystem integrations (scodec, future Circe, etc.) belong in their own Mill submodule, not in core.
+
+`interop/rust-fixtures/` is a standalone Cargo project that prints hex fixtures to stdout; it is not part of the Scala build and should not gain Scala dependencies. The committed `interop/fixtures/postcard-1.1.3.hex` is the source of truth for tests.
+
+## Architecture
+
+The encode/decode pipeline is intentionally small and `Either`-based — there are no exceptions on the happy path, no streaming, and no implicit resource management.
+
+- `Postino.encode` / `Postino.decode` are the entry points. Top-level decode rejects trailing bytes (`PostinoError.TrailingBytes`).
+- `Writer` (mutable byte buffer) and `Reader` (cursor over `Array[Byte]`) are the only I/O primitives. Every read/write returns `Either[PostinoError, _]`.
+- `Codec[A] = Encoder[A] with Decoder[A]`. `Codec.derived` works for product types via Scala 3 `Mirror.ProductOf` (constructor fields in order, no field names, no length prefix — matches Rust struct layout).
+- `Codec.derived` also works for sealed traits/enums in the declaration-order case: `Mirror.SumOf` children are assigned `u32` discriminants `0..n-1`. Use `Postino.sum[A].variant(discriminant, codec).build` for `#[repr]`, serde tags, sparse discriminants, or any schema where Scala declaration order does not exactly match Rust.
+- `Varint.scala` implements postcard's LEB128-with-cap varints; signed integers (`i16`/`i32`/`i64`/`i128`) go through zigzag in `PrimitiveCodecs`. Unsigned types are exposed as `U16` / `U32` / `U64` / `U128` value classes in `Unsigned.scala` because Scala has no native unsigned ints — use these whenever modeling Rust `u16`/`u32`/`u64`/`u128`.
+- `PostinoError` is a closed sealed trait of structured errors. Add a new case there (with a `message`) rather than threading strings.
+- The scodec adapter (`PostinoScodec.toScodec`) requires byte-aligned input and reports `SizeBound.unknown` because postcard is variable-length.
+
+## Conventions
+
+- Scala 3.8.3, new syntax (`-new-syntax`), `-Wunused:imports` is on — keep imports clean.
+- Scalafmt config (`.scalafmt.conf`): `align.preset = more`, `maxColumn = 100`. Run `./mill --no-server fmt` before committing.
+- Files use `package postino` / `postino.scodec`, indented Scala 3 style, no braces.
+- Test fixtures live in `interop/fixtures/postcard-1.1.3.hex` and are loaded by name (e.g. `assertFixtureRoundTrip("i32_300", 300)`). When you add a new codec feature, add a Rust fixture in `interop/rust-fixtures/src/main.rs`, regenerate with `interopTest`, commit the updated hex file, and reference the fixture name in a Scala test.

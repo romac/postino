@@ -3,10 +3,16 @@
 ## How postino derives codecs
 
 **Products** (`Codec.derived` / `derives Codec`):
-- `Codec.scala:31-36` matches on `Mirror.Of[A]`. Products go to `ProductCodecs.derivedProduct`; sums hit `compiletime.error(...)` pointing at `Postino.sum[A].variant(...).build`.
+- `Codec.scala` matches on `Mirror.Of[A]`. Products go to `ProductCodecs.derivedProduct`.
 - `summonCodecs[Fields <: Tuple]` recursively summons a `Codec[field]` per `MirroredElemTypes` entry, then materializes the result as an **`IArray[Codec[Any]]`** for indexed runtime access.
 - Runtime encode calls `product.productElement(index)` + `fieldCodecs(index).encode(...)` in a `while` loop with an early-return on `Left`.
 - Runtime decode writes each decoded value into a pre-sized `Array[Any]`, then calls `mirror.fromProduct(Tuple.fromArray(values))`.
+
+**Derived sums** (`Codec.derived` / `derives Codec`):
+- `Mirror.SumOf` children are walked in declaration order, and each child must have its own `Codec`.
+- Runtime encode uses `mirror.ordinal(value)` as the `u32` discriminant, then delegates to the child codec at that ordinal.
+- Runtime decode reads a `u32` discriminant and indexes into the same declaration-order child codec table.
+- This path is only for schemas where Scala declaration order exactly matches Rust enum declaration order.
 
 **Sums** (`SumCodecBuilder`):
 - Manual fluent builder. Each `.variant(disc, Codec[B])` appends `(discriminant, codec, ClassTag[B])` to a `Vector`.
@@ -31,12 +37,11 @@ Borer is fully macro-based (`scala.quoted.*`), and that gives it qualitatively d
 
 - `IArray[Codec[Any]]` for O(1) runtime field-codec indexing.
 - Fixed-size `Array[Any]` decode accumulation before `Tuple.fromArray`.
-- A small macro summoner for clearer missing-field-codec errors.
+- Small macro summoners for clearer missing product-field and sum-variant codec errors.
 
 **Worth considering:**
 
-- **Mirror-aware sum builder for exhaustiveness.** Keep the explicit-discriminant policy (which is the right call given postcard semantics depend on Rust declaration order), but add a `Postino.sum[A].variants((0, summon[Codec[Ping]]), (1, summon[Codec[Pong]]), ...).build` form that uses `Mirror.SumOf[A]#MirroredElemTypes` to verify at compile time that every subtype was registered exactly once. This catches "forgot to add a variant" without inferring discriminants.
-- **A `derives Codec` story for `enum`/sum that fails *with the variant list pre-filled*.** Right now the error is just text. A macro could emit a stub like `// Postino.sum[Message].variant(0, Codec[Ping]).variant(1, Codec[Pong]).build` so the user can copy-paste and just adjust discriminants.
+- **Mirror-aware explicit sum builder for exhaustiveness.** Keep the explicit-discriminant path for custom discriminants, but add a `Postino.sum[A].variants((0, summon[Codec[Ping]]), (1, summon[Codec[Pong]]), ...).build` form that uses `Mirror.SumOf[A]#MirroredElemTypes` to verify at compile time that every subtype was registered exactly once. This catches "forgot to add a variant" without inferring discriminants.
 
 **Probably not worth it for v0:**
 
@@ -45,4 +50,4 @@ Borer is fully macro-based (`scala.quoted.*`), and that gives it qualitatively d
 
 ## Summary
 
-Postino's derivation is intentionally a thin shim over Scala 3 mirrors, and the explicit-sum policy is well-justified by the wire-format constraint. The tactical product-derivation optimizations are already in place: field codecs are stored in an `IArray`, and decoded fields are written directly into a pre-sized array. The remaining useful improvements are around diagnostics and explicit-sum ergonomics; full macros, auto-derived sums, and map-based codecs would either undermine the small-core goal or break wire compatibility.
+Postino's derivation is intentionally a thin shim over Scala 3 mirrors. Product and declaration-order sum derivation share the same small-runtime-codec-table approach: child codecs are stored in an `IArray`, and runtime work is direct indexed dispatch. The remaining useful improvements are around diagnostics and explicit-sum ergonomics; full macros and map-based encoding would either undermine the small-core goal or break wire compatibility.

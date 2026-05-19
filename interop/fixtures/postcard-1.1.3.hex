@@ -29,4 +29,7 @@ envelope: 07 54 04 72 61 63 6b 03 01 00 02 01 02 6f 6b 03 01 02 03
 enum_ping: 00
 enum_pong: 01 cd d7 02
 enum_data: 02 03 09 08 07
+derived_enum_ping: 00
+derived_enum_pong: 01 cd d7 02
+derived_enum_data: 02 03 09 08 07
 enum_discriminant_128: 80 01
