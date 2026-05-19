@@ -21,7 +21,7 @@ final class Reader private (
     readByte().map(_ & 0xff)
 
   def readBytes(length: Int): Either[PostinoError, Array[Byte]] =
-    if length < 0 then Left(PostinoError.LengthTooLarge(BigInt(length)))
+    if length < 0 then Left(PostinoError.NegativeLength(length))
     else if remaining < length then Left(PostinoError.UnexpectedEnd)
     else
       val value = java.util.Arrays.copyOfRange(bytes, offset, offset + length)

@@ -16,6 +16,9 @@ object PostinoError:
   final case class LengthTooLarge(length: BigInt) extends PostinoError:
     def message = s"length $length does not fit in a JVM array"
 
+  final case class NegativeLength(length: Int) extends PostinoError:
+    def message = s"negative byte length $length"
+
   final case class CollectionLengthTooLarge(length: Int, max: Int) extends PostinoError:
     def message = s"collection length $length exceeds configured maximum $max"
 

@@ -74,6 +74,12 @@ final class PostinoSuite extends FunSuite:
       Left(PostinoError.CollectionElementLimitExceeded(3, 0, 5))
     )
 
+  test("reader rejects negative byte lengths distinctly"):
+    assertEquals(
+      Reader.from(Array.emptyByteArray).readBytes(-1),
+      Left(PostinoError.NegativeLength(-1))
+    )
+
   test("case class products encode constructor fields without names or length"):
     val sensor = Sensor(U16.unsafeFromInt(0x1234), -21, "lab")
     assertFixtureRoundTrip("sensor", sensor)
