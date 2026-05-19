@@ -230,23 +230,32 @@ trait LowPriorityCodecs:
       decodeIndexed(in, valueCodec).map(_.toVector)
 
   given arrayCodec[A](using valueCodec: Codec[A], classTag: ClassTag[A]): Codec[Array[A]] with
+    // Kept low-priority so the Array[Byte] byte-blob codec in Codec wins for raw bytes.
     def encode(value: Array[A], out: Writer): Either[PostinoError, Unit] =
-      encodeIterable(value, valueCodec, out)
+      encodeArray(value, valueCodec, out)
 
     def decode(in: Reader): Either[PostinoError, Array[A]] =
       decodeIndexed(in, valueCodec).map(_.toArray)
 
   private def encodeIterable[A](
-      values: IterableOnce[A],
+      values: Iterable[A],
       valueCodec: Codec[A],
       out: Writer
   ): Either[PostinoError, Unit] =
-    val indexed = values.iterator.toIndexedSeq
-
     PrimitiveCodecs
-      .writeLength(indexed.length, out)
+      .writeLength(values.size, out)
       .flatMap: _ =>
-        encodeAll(indexed.iterator, valueCodec, out)
+        encodeAll(values.iterator, valueCodec, out)
+
+  private def encodeArray[A](
+      values: Array[A],
+      valueCodec: Codec[A],
+      out: Writer
+  ): Either[PostinoError, Unit] =
+    PrimitiveCodecs
+      .writeLength(values.length, out)
+      .flatMap: _ =>
+        encodeAll(values.iterator, valueCodec, out)
 
   @tailrec
   private def encodeAll[A](
