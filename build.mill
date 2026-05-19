@@ -14,7 +14,7 @@ trait PostinoPublishModule extends ScalaModule with mill.javalib.SonatypeCentral
 
   def pomSettings: T[PomSettings] = Task:
     PomSettings(
-      description = "Scala 3 implementation of the Rust postcard 1.x non-COBS wire format.",
+      description = "Scala 3 implementation of the Rust postcard 1.x wire format.",
       organization = postinoGroupId(),
       url = "https://github.com/romac/postino",
       licenses = Seq(License.`Apache-2.0`),
@@ -49,9 +49,11 @@ object `package` extends PostinoPublishModule with ScalafmtModule:
   def fmt() = Task.Command:
     mill.scalalib.scalafmt.ScalafmtWorkerModule.worker().reformat(
       filesToFormat(sources()) ++
-        filesToFormat(test.sources()) ++
+      filesToFormat(test.sources()) ++
         filesToFormat(postinoScodec.sources()) ++
-        filesToFormat(postinoScodec.test.sources()),
+        filesToFormat(postinoScodec.test.sources()) ++
+        filesToFormat(postinoCirce.sources()) ++
+        filesToFormat(postinoCirce.test.sources()),
       scalafmtConfig().head,
     )
 
@@ -121,6 +123,26 @@ object `package` extends PostinoPublishModule with ScalafmtModule:
 
     object test extends ScalaTests with TestModule.Munit:
       override def sources = Task.Sources(BuildCtx.workspaceRoot / "postino-scodec/test/src")
+
+      override def mvnDeps = Seq(
+        mvn"org.scalameta::munit:1.2.1",
+      )
+
+  object postinoCirce extends PostinoPublishModule:
+    override def artifactName = "postino-circe"
+    override def scalaVersion = outer.scalaVersion()
+    override def scalacOptions = outer.scalacOptions()
+    override def publishVersion = outer.publishVersion()
+    override def postinoGroupId = outer.postinoGroupId()
+    override def sources = Task.Sources(BuildCtx.workspaceRoot / "postino-circe/src")
+    override def moduleDeps = Seq(outer)
+
+    override def mvnDeps = Seq(
+      mvn"io.circe::circe-core:0.14.15",
+    )
+
+    object test extends ScalaTests with TestModule.Munit:
+      override def sources = Task.Sources(BuildCtx.workspaceRoot / "postino-circe/test/src")
 
       override def mvnDeps = Seq(
         mvn"org.scalameta::munit:1.2.1",

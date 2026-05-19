@@ -20,11 +20,18 @@ Optional scodec adapter:
 ivy"me.romac::postino-scodec:0.1.0-M1"
 ```
 
+Optional Circe adapter:
+
+```scala
+ivy"me.romac::postino-circe:0.1.0-M1"
+```
+
 For sbt:
 
 ```scala
 libraryDependencies += "me.romac" %% "postino" % "0.1.0-M1"
 libraryDependencies += "me.romac" %% "postino-scodec" % "0.1.0-M1"
+libraryDependencies += "me.romac" %% "postino-circe" % "0.1.0-M1"
 ```
 
 ## Basic Usage
@@ -226,6 +233,28 @@ val codec: scodec.Codec[List[Int]] =
 
 The adapter reports `SizeBound.unknown`, requires byte-aligned input, returns the unconsumed byte-aligned remainder from decode, and maps `PostinoError.message` into `scodec.Err`.
 
+## Circe Adapter
+
+The optional Circe module derives an `io.circe.Codec[A]` for Postino schemas. It is meant for debugging, logging, and JSON-facing tools; postcard itself is positional and not self-describing, so this is a schema-driven JSON projection rather than a wire-format conversion.
+
+```scala
+import postino.*
+import postino.circe.PostinoCirce
+
+final case class Sensor(id: U16, temp: Int, label: String) derives Codec
+
+val codec: io.circe.Codec[Sensor] =
+  PostinoCirce.toCirce[Sensor]
+```
+
+Products encode as JSON objects using Scala mirror field names. Sums encode as tagged objects:
+
+```json
+{ "tag": "Pong", "value": { "id": 43981 } }
+```
+
+Maps encode as ordered arrays of `{ "key": ..., "value": ... }` entries so non-string keys and wire-order-sensitive maps stay representable.
+
 ## Limitations
 
 Postino v0 does not support:
@@ -233,7 +262,6 @@ Postino v0 does not support:
 - streaming flavors
 - Serde attributes
 - schema evolution
-- Circe integration
 
 ## License
 

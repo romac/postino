@@ -44,12 +44,16 @@ The default CRC implementation is `Crc.Crc32Fast`, matching CRC-32/ISO-HDLC
 parameters and postcard's little-endian checksum bytes. Callers can pass another
 `Crc` value when their Rust side uses a different CRC flavor.
 
+The optional Circe adapter is outside the postcard wire format. It derives a
+schema-driven JSON projection from the same Scala mirror shape: products are JSON
+objects with field names, sums use `{ "tag": "...", "value": ... }`, and maps use
+ordered key/value entry arrays.
+
 Deferred:
 
 - Serde attributes
 - schema evolution
 - streaming flavors
-- Circe integration
 
 ## Verification
 
