@@ -34,3 +34,7 @@ and offline.
 
 Run `./mill --no-server interopTest` to regenerate the fixture stream with the
 Rust `postcard` crate and compare it against the checked-in fixture file.
+
+Decoded Scala collection lengths are subject to `DecodeOptions` safety limits.
+These limits do not change encoded wire bytes; callers can raise or lower them
+for their trust boundary.

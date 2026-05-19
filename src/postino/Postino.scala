@@ -6,7 +6,13 @@ object Postino:
     encoder.encode(value, out).map(_ => out.toByteArray)
 
   def decode[A](bytes: Array[Byte])(using decoder: Decoder[A]): Either[PostinoError, A] =
-    val in = Reader.from(bytes)
+    decode(bytes, DecodeOptions.default)
+
+  def decode[A](
+      bytes: Array[Byte],
+      decodeOptions: DecodeOptions
+  )(using decoder: Decoder[A]): Either[PostinoError, A] =
+    val in = Reader.from(bytes, decodeOptions)
     decoder
       .decode(in)
       .flatMap: value =>

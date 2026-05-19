@@ -1,6 +1,11 @@
 package postino
 
-final class Reader private (private val bytes: Array[Byte], private var offset: Int):
+final class Reader private (
+    private val bytes: Array[Byte],
+    private var offset: Int,
+    val decodeOptions: DecodeOptions,
+    private var remainingCollectionElements: Long
+):
   def position: Int = offset
 
   def remaining: Int = bytes.length - offset
@@ -23,6 +28,24 @@ final class Reader private (private val bytes: Array[Byte], private var offset: 
       offset += length
       Right(value)
 
+  private[postino] def reserveCollectionElements(length: Int): Either[PostinoError, Unit] =
+    if length > decodeOptions.maxCollectionLength then
+      Left(PostinoError.CollectionLengthTooLarge(length, decodeOptions.maxCollectionLength))
+    else if length.toLong > remainingCollectionElements then
+      Left(
+        PostinoError.CollectionElementLimitExceeded(
+          length,
+          remainingCollectionElements,
+          decodeOptions.maxCollectionElements
+        )
+      )
+    else
+      remainingCollectionElements -= length.toLong
+      Right(())
+
 object Reader:
   def from(bytes: Array[Byte]): Reader =
-    new Reader(bytes, 0)
+    from(bytes, DecodeOptions.default)
+
+  def from(bytes: Array[Byte], decodeOptions: DecodeOptions): Reader =
+    new Reader(bytes, 0, decodeOptions, decodeOptions.maxCollectionElements)

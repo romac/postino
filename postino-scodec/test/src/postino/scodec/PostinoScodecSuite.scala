@@ -25,3 +25,10 @@ final class PostinoScodecSuite extends FunSuite:
     val codec = PostinoScodec.toScodec[Int]
 
     assert(codec.decode(BitVector.high(1)).isFailure)
+
+  test("toScodec uses configured Postino decode options"):
+    val codec = PostinoScodec.toScodec[List[Unit]](
+      DecodeOptions(maxCollectionLength = 1, maxCollectionElements = 10)
+    )
+
+    assert(codec.decode(BitVector.fromValidHex("02")).isFailure)

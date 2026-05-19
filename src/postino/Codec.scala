@@ -267,19 +267,21 @@ trait LowPriorityCodecs:
     PrimitiveCodecs
       .readLength(in)
       .flatMap: length =>
-        val builder                     = IndexedSeq.newBuilder[A]
-        var index                       = 0
-        var error: Option[PostinoError] = None
+        in.reserveCollectionElements(length)
+          .flatMap: _ =>
+            val builder                     = IndexedSeq.newBuilder[A]
+            var index                       = 0
+            var error: Option[PostinoError] = None
 
-        while index < length && error.isEmpty do
-          valueCodec.decode(in) match
-            case Right(value) => builder += value
-            case Left(cause)  => error = Some(cause)
-          index += 1
+            while index < length && error.isEmpty do
+              valueCodec.decode(in) match
+                case Right(value) => builder += value
+                case Left(cause)  => error = Some(cause)
+              index += 1
 
-        error match
-          case Some(cause) => Left(cause)
-          case None        => Right(builder.result())
+            error match
+              case Some(cause) => Left(cause)
+              case None        => Right(builder.result())
 
 private[postino] object ProductCodecs:
   inline def derivedProduct[A](mirror: Mirror.ProductOf[A]): Codec[A] =

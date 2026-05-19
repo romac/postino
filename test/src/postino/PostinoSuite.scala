@@ -52,6 +52,22 @@ final class PostinoSuite extends FunSuite:
     assertFixtureRoundTrip("option_i32_some_300", Option(300))
     assertFixtureRoundTrip("list", List[Short](1, -1, 300))
 
+  test("sequence decode rejects lengths over the configured maximum"):
+    val decodeOptions = DecodeOptions(maxCollectionLength = 2, maxCollectionElements = 10)
+
+    assertEquals(
+      Postino.decode[List[Unit]](bytes(0x03), decodeOptions),
+      Left(PostinoError.CollectionLengthTooLarge(3, 2))
+    )
+
+  test("sequence decode applies a total collection element budget"):
+    val decodeOptions = DecodeOptions(maxCollectionLength = 3, maxCollectionElements = 5)
+
+    assertEquals(
+      Postino.decode[List[List[Unit]]](bytes(0x02, 0x03, 0x03), decodeOptions),
+      Left(PostinoError.CollectionElementLimitExceeded(3, 0, 5))
+    )
+
   test("case class products encode constructor fields without names or length"):
     val sensor = Sensor(U16.unsafeFromInt(0x1234), -21, "lab")
     assertFixtureRoundTrip("sensor", sensor)

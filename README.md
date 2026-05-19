@@ -113,6 +113,18 @@ Postino.decode[Boolean](Array(0x01.toByte, 0x00.toByte))
 // Left(PostinoError.TrailingBytes(1))
 ```
 
+Collection decoders enforce configurable safety limits so small inputs cannot
+request unbounded decode work. The defaults allow at most 1,000,000 elements in
+one collection and 1,000,000 collection elements across a whole top-level decode.
+
+```scala
+val decoded =
+  Postino.decode[List[Int]](
+    bytes,
+    DecodeOptions(maxCollectionLength = 1024, maxCollectionElements = 4096)
+  )
+```
+
 ## Codecs
 
 Postino uses three type classes:
@@ -250,6 +262,7 @@ Postino v0 matches the following `postcard` conventions:
 
 The JVM cannot allocate arrays larger than `Int.MaxValue`, so decoded length
 prefixes larger than that fail with `PostinoError.LengthTooLarge`.
+Decoded collection lengths are also checked against `DecodeOptions`.
 
 ## Errors
 
@@ -259,6 +272,8 @@ prefixes larger than that fail with `PostinoError.LengthTooLarge`.
 - `VarintTooLong`
 - `VarintOverflow`
 - `LengthTooLarge`
+- `CollectionLengthTooLarge`
+- `CollectionElementLimitExceeded`
 - `InvalidBoolean`
 - `InvalidOptionTag`
 - `InvalidUtf8`
@@ -283,6 +298,16 @@ import postino.scodec.PostinoScodec
 
 val codec: scodec.Codec[Int] =
   PostinoScodec.toScodec[Int]
+```
+
+Pass `DecodeOptions` when adapting a codec if the default collection decode
+limits are not appropriate:
+
+```scala
+val codec: scodec.Codec[List[Int]] =
+  PostinoScodec.toScodec[List[Int]](
+    DecodeOptions(maxCollectionLength = 1024, maxCollectionElements = 4096)
+  )
 ```
 
 The adapter:
