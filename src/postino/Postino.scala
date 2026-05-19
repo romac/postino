@@ -1,9 +1,19 @@
 package postino
 
+import java.io.{InputStream, OutputStream}
+
 object Postino:
   def encode[A](value: A)(using encoder: Encoder[A]): Either[PostinoError, Array[Byte]] =
     val out = Writer.empty
     encoder.encode(value, out).map(_ => out.toByteArray)
+
+  def encodeTo[A](value: A, sink: Sink)(using encoder: Encoder[A]): Either[PostinoError, Unit] =
+    encoder.encode(value, Writer.to(sink))
+
+  def encodeTo[A](value: A, output: OutputStream)(using
+      encoder: Encoder[A]
+  ): Either[PostinoError, Unit] =
+    encodeTo(value, Sink.outputStream(output))
 
   def decode[A](bytes: Array[Byte])(using decoder: Decoder[A]): Either[PostinoError, A] =
     decode(bytes, DecodeOptions.default)
@@ -13,11 +23,31 @@ object Postino:
       decodeOptions: DecodeOptions
   )(using decoder: Decoder[A]): Either[PostinoError, A] =
     val in = Reader.from(bytes, decodeOptions)
+    decodeFrom(in)
+
+  def decodeFrom[A](source: Source)(using decoder: Decoder[A]): Either[PostinoError, A] =
+    decodeFrom(source, DecodeOptions.default)
+
+  def decodeFrom[A](
+      source: Source,
+      decodeOptions: DecodeOptions
+  )(using decoder: Decoder[A]): Either[PostinoError, A] =
+    decodeFrom(Reader.from(source, decodeOptions))
+
+  def decodeFrom[A](input: InputStream)(using decoder: Decoder[A]): Either[PostinoError, A] =
+    decodeFrom(input, DecodeOptions.default)
+
+  def decodeFrom[A](
+      input: InputStream,
+      decodeOptions: DecodeOptions
+  )(using decoder: Decoder[A]): Either[PostinoError, A] =
+    decodeFrom(Reader.from(input, decodeOptions))
+
+  private def decodeFrom[A](in: Reader)(using decoder: Decoder[A]): Either[PostinoError, A] =
     decoder
       .decode(in)
       .flatMap: value =>
-        if in.remaining == 0 then Right(value)
-        else Left(PostinoError.TrailingBytes(in.remaining, in.position))
+        in.finish().map(_ => value)
 
   def encodeCobs[A](value: A)(using encoder: Encoder[A]): Either[PostinoError, Array[Byte]] =
     encode(value).flatMap(Cobs.encode)

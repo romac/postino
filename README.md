@@ -55,6 +55,25 @@ Postino.decode[Boolean](Array(0x01.toByte, 0x00.toByte))
 // Left(PostinoError.TrailingBytes(1, 1))
 ```
 
+## Streaming I/O
+
+Use `Postino.encodeTo` and `Postino.decodeFrom` when the bytes live behind a Java stream and you do not want to buffer the whole message first.
+
+```scala
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import postino.*
+
+val output = ByteArrayOutputStream()
+val encoded: Either[PostinoError, Unit] =
+  Postino.encodeTo(300, output)
+
+val input = ByteArrayInputStream(output.toByteArray)
+val decoded: Either[PostinoError, Int] =
+  Postino.decodeFrom[Int](input)
+```
+
+`decodeFrom` expects a finite source for raw postcard payloads and checks for trailing bytes by reading to the end of that source. For long-lived sockets or byte streams carrying multiple messages, use a framing layer such as COBS first.
+
 ## Framing
 
 Use `Postino.encodeCobs` and `Postino.decodeCobs` for postcard COBS frames. COBS decoding expects a complete frame with a final `0x00` terminator and rejects zero bytes before that terminator.
@@ -259,7 +278,7 @@ Maps encode as ordered arrays of `{ "key": ..., "value": ... }` entries so non-s
 
 Postino v0 does not support:
 
-- streaming flavors
+- FS2 integration
 - Serde attributes
 - schema evolution
 

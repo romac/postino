@@ -1,32 +1,34 @@
 package postino
 
 final class Reader private (
-    private val bytes: Array[Byte],
-    private var offset: Int,
+    private val source: Source,
     val decodeOptions: DecodeOptions,
     private var remainingCollectionElements: Long
 ):
-  def position: Int = offset
+  def position: Int =
+    math.min(source.position, Int.MaxValue.toLong).toInt
 
-  def remaining: Int = bytes.length - offset
+  def remaining: Int =
+    source.remaining.getOrElse(0)
 
   def readByte(): Either[PostinoError, Byte] =
-    if offset >= bytes.length then Left(PostinoError.UnexpectedEnd)
-    else
-      val value = bytes(offset)
-      offset += 1
-      Right(value)
+    source.readByte()
 
   def readUnsignedByte(): Either[PostinoError, Int] =
     readByte().map(_ & 0xff)
 
   def readBytes(length: Int): Either[PostinoError, Array[Byte]] =
-    if length < 0 then Left(PostinoError.NegativeLength(length))
-    else if remaining < length then Left(PostinoError.UnexpectedEnd)
-    else
-      val value = java.util.Arrays.copyOfRange(bytes, offset, offset + length)
-      offset += length
-      Right(value)
+    source.readBytes(length)
+
+  private[postino] def finish(): Either[PostinoError, Unit] =
+    source.remaining match
+      case Some(0) => Right(())
+      case Some(count) =>
+        Left(PostinoError.TrailingBytes(count, position))
+      case None =>
+        source.atEnd.flatMap: atEnd =>
+          if atEnd then Right(())
+          else Left(PostinoError.TrailingBytes(1, position))
 
   private[postino] def reserveCollectionElements(length: Int): Either[PostinoError, Unit] =
     if length > decodeOptions.maxCollectionLength then
@@ -48,4 +50,16 @@ object Reader:
     from(bytes, DecodeOptions.default)
 
   def from(bytes: Array[Byte], decodeOptions: DecodeOptions): Reader =
-    new Reader(bytes, 0, decodeOptions, decodeOptions.maxCollectionElements)
+    from(Source.from(bytes), decodeOptions)
+
+  def from(source: Source): Reader =
+    from(source, DecodeOptions.default)
+
+  def from(source: Source, decodeOptions: DecodeOptions): Reader =
+    new Reader(source, decodeOptions, decodeOptions.maxCollectionElements)
+
+  def from(input: java.io.InputStream): Reader =
+    from(Source.from(input), DecodeOptions.default)
+
+  def from(input: java.io.InputStream, decodeOptions: DecodeOptions): Reader =
+    from(Source.from(input), decodeOptions)

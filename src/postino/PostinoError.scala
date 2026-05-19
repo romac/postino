@@ -42,6 +42,9 @@ object PostinoError:
   final case class TrailingBytes(count: Int, offset: Int) extends PostinoError:
     def message = s"$count trailing byte(s) starting at offset $offset"
 
+  final case class Io(operation: String, reason: String) extends PostinoError:
+    def message = s"I/O error during $operation: $reason"
+
   final case class CobsFraming(reason: String) extends PostinoError:
     def message = s"invalid COBS frame: $reason"
 

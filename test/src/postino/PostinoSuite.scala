@@ -2,8 +2,9 @@ package postino
 
 import munit.FunSuite
 
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, IOException, InputStream, OutputStream}
 import scala.collection.immutable.{ListMap, SortedMap}
-import scala.io.Source
+import scala.io.Source as ScalaSource
 
 final class PostinoSuite extends FunSuite:
   final case class Sensor(id: U16, temp: Int, label: String) derives Codec
@@ -155,6 +156,41 @@ final class PostinoSuite extends FunSuite:
     assertEquals(
       Reader.from(Array.emptyByteArray).readBytes(-1),
       Left(PostinoError.NegativeLength(-1))
+    )
+
+  test("streaming encode writes postcard bytes to an OutputStream"):
+    val output = ByteArrayOutputStream()
+
+    assertEquals(Postino.encodeTo(300, output), Right(()))
+    assertEquals(unsigned(output.toByteArray), fixture("i32_300"))
+
+  test("streaming decode reads postcard bytes from an InputStream"):
+    val sensor = Sensor(U16.unsafeFromInt(0x1234), -21, "lab")
+    val input  = ByteArrayInputStream(fixtureBytes("sensor"))
+
+    assertEquals(Postino.decodeFrom[Sensor](input), Right(sensor))
+
+  test("streaming decode rejects trailing bytes on finite InputStreams"):
+    val input = ByteArrayInputStream(bytes(0x01, 0xff))
+
+    assertEquals(Postino.decodeFrom[Boolean](input), Left(PostinoError.TrailingBytes(1, 1)))
+
+  test("streaming I/O failures report structured errors"):
+    val failingInput = new InputStream:
+      def read(): Int =
+        throw IOException("boom")
+
+    val failingOutput = new OutputStream:
+      def write(value: Int): Unit =
+        throw IOException("full")
+
+    assertEquals(
+      Postino.decodeFrom[Boolean](failingInput),
+      Left(PostinoError.Io("read byte", "boom"))
+    )
+    assertEquals(
+      Postino.encodeTo(true, failingOutput),
+      Left(PostinoError.Io("write byte", "full"))
     )
 
   test("case class products encode constructor fields without names or length"):
@@ -370,7 +406,7 @@ final class PostinoSuite extends FunSuite:
       Option(getClass.getClassLoader.getResourceAsStream("postcard-1.1.3.hex"))
         .getOrElse(fail("missing postcard-1.1.3.hex test resource"))
 
-    val source = Source.fromInputStream(resource, "UTF-8")
+    val source = ScalaSource.fromInputStream(resource, "UTF-8")
     try
       source
         .getLines()

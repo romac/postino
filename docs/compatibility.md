@@ -22,6 +22,7 @@ Supported:
 - ADTs/enums as a `u32` varint discriminant followed by the selected payload
 - COBS frames produced by `postcard::to_stdvec_cobs`, including the final zero terminator
 - CRC frames with a trailing little-endian checksum over the encoded payload
+- finite Java `InputStream` / `OutputStream` encode/decode through the same wire format
 
 Postcard varints are capped LEB128: `u16`, `u32`, `u64`, and `u128` use at most
 3, 5, 10, and 19 bytes respectively. The final allowed byte must terminate the varint,
@@ -49,11 +50,15 @@ schema-driven JSON projection from the same Scala mirror shape: products are JSO
 objects with field names, sums use `{ "tag": "...", "value": ... }`, and maps use
 ordered key/value entry arrays.
 
+Streaming decode for raw postcard payloads expects a finite source and checks for
+trailing bytes at the end. Raw postcard is not self-delimiting on an endless byte
+stream, so long-lived links should use an explicit framing layer such as COBS.
+
 Deferred:
 
 - Serde attributes
 - schema evolution
-- streaming flavors
+- FS2 integration
 
 ## Verification
 

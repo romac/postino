@@ -33,9 +33,10 @@ Keep the core dependency-light. New ecosystem integrations belong in their own M
 
 ## Architecture
 
-The encode/decode pipeline is intentionally small and `Either`-based — there are no exceptions on the happy path, no streaming, and no implicit resource management.
+The encode/decode pipeline is intentionally small and `Either`-based — there are no exceptions on the happy path and no implicit resource management.
 
 - `Postino.encode` / `Postino.decode` are the raw postcard entry points. Top-level decode rejects trailing bytes (`PostinoError.TrailingBytes`).
+- `Postino.encodeTo` / `Postino.decodeFrom` stream raw postcard payloads through `Sink` / `Source` and Java `OutputStream` / `InputStream`. Raw postcard decode expects a finite source so trailing bytes can be checked.
 - `Postino.encodeCobs` / `Postino.decodeCobs` wrap the raw payload with postcard COBS framing. Decode expects a full frame with the final zero terminator and rejects earlier zero bytes.
 - `Postino.encodeCrc` / `Postino.decodeCrc` wrap the raw payload with postcard's trailing CRC flavor. `Crc.Crc32Fast` is the default CRC-32/ISO-HDLC implementation; pass a `Crc` explicitly for other CRC-32 flavors.
 - `Writer` (mutable byte buffer) and `Reader` (cursor over `Array[Byte]`) are the only I/O primitives. Every read/write returns `Either[PostinoError, _]`.
