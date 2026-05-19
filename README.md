@@ -128,11 +128,14 @@ trait Codec[A] extends Encoder[A] with Decoder[A]
 ```
 
 Most users should provide or summon `Codec[A]`. `Encoder[A]` and `Decoder[A]`
-are useful when a type is intentionally one-way.
+are accepted by `Postino.encode` and `Postino.decode` for top-level values and
+can be useful in hand-written codecs, but the built-in collection instances and
+`derives Codec` are bidirectional. Nested element types and derived product
+fields must provide a full `Codec[A]`.
 
 ## Supported Types
 
-The core module includes codecs for:
+The core module includes bidirectional codecs for:
 
 - `Unit`
 - `Boolean`
