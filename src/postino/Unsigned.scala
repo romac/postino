@@ -26,7 +26,9 @@ object U32:
   def unsafeFromLong(value: Long): U32 =
     fromLong(value).fold(error => throw new IllegalArgumentException(error.message), identity)
 
-final case class U64 private (toBigInt: BigInt):
+final class U64 private (val toUnsignedLong: Long) extends AnyVal:
+  def toBigInt: BigInt = U64.unsignedLongToBigInt(toUnsignedLong)
+
   override def toString: String = toBigInt.toString
 
 object U64:
@@ -34,14 +36,15 @@ object U64:
 
   /** Interprets `value` as a signed JVM Long. Negative values are rejected. */
   def fromLong(value: Long): Either[PostinoError, U64] =
-    fromBigInt(BigInt(value))
+    if value >= 0 then Right(new U64(value))
+    else Left(PostinoError.InvalidUnsignedValue("u64", BigInt(value)))
 
   /** Interprets `bits` as the two's-complement bit pattern of an unsigned 64-bit value. */
   def fromUnsignedLong(bits: Long): U64 =
-    U64(unsignedLongToBigInt(bits))
+    new U64(bits)
 
   def fromBigInt(value: BigInt): Either[PostinoError, U64] =
-    if value >= 0 && value <= MaxValue then Right(U64(value))
+    if value >= 0 && value <= MaxValue then Right(new U64(value.toLong))
     else Left(PostinoError.InvalidUnsignedValue("u64", value))
 
   def unsafeFromLong(value: Long): U64 =

@@ -40,6 +40,7 @@ final class PostinoSuite extends FunSuite:
 
   test("U64 constructors distinguish signed values from unsigned bit patterns"):
     assertEquals(U64.fromLong(-1L), Left(PostinoError.InvalidUnsignedValue("u64", BigInt(-1))))
+    assertEquals(U64.fromUnsignedLong(-1L).toUnsignedLong, -1L)
     assertEquals(U64.fromUnsignedLong(-1L).toBigInt, U64.MaxValue)
     assertEquals(U64.fromUnsignedLong(Long.MinValue).toBigInt, BigInt(1) << 63)
 

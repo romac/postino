@@ -137,6 +137,7 @@ val max: U64 =
 Use the safe constructors when decoding external input into your own model.
 The `unsafeFrom...` helpers throw `IllegalArgumentException` and are mainly for tests, examples, and constants.
 `U64.fromLong` treats its input as a signed JVM `Long` and rejects negative values; use `U64.fromUnsignedLong(bits)` when you already have the raw unsigned 64-bit bit pattern.
+Use `u64.toBigInt` for the numeric unsigned value and `u64.toUnsignedLong` for the raw JVM `Long` bit pattern.
 
 Rust `u8` values use the raw `Byte` codec. Values above 127 appear as negative Scala `Byte` values; mask with `byte & 0xff` when you need the unsigned integer view.
 
