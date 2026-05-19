@@ -1,15 +1,16 @@
 package postino
 
 import scala.annotation.tailrec
+import scala.collection.immutable.SortedMap
 import scala.compiletime.{constValue, erasedValue, error}
 import scala.deriving.Mirror
 import scala.reflect.ClassTag
 import scala.util.control.NonFatal
 
-trait Encoder[-A]:
+trait Encoder[A]:
   def encode(value: A, out: Writer): Either[PostinoError, Unit]
 
-trait Decoder[+A]:
+trait Decoder[A]:
   def decode(in: Reader): Either[PostinoError, A]
 
 trait Codec[A] extends Encoder[A] with Decoder[A]
@@ -52,6 +53,42 @@ private[postino] object PrimitiveCodecs:
           case 0     => Right(false)
           case 1     => Right(true)
           case other => Left(PostinoError.InvalidBoolean(other))
+
+  given Codec[Char] with
+    def encode(value: Char, out: Writer): Either[PostinoError, Unit] =
+      if java.lang.Character.isSurrogate(value) then
+        Left(PostinoError.InvalidChar(BigInt(value.toInt)))
+      else
+        val bytes = value.toString.getBytes(java.nio.charset.StandardCharsets.UTF_8)
+        for
+          _ <- writeLength(bytes.length, out)
+          _ <- out.writeBytes(bytes)
+        yield ()
+
+    def decode(in: Reader): Either[PostinoError, Char] =
+      readLength(in).flatMap: length =>
+        if length > 4 then Left(PostinoError.InvalidChar(BigInt(length)))
+        else
+          in.readBytes(length)
+            .flatMap: bytes =>
+              val decoder =
+                java.nio.charset.StandardCharsets.UTF_8
+                  .newDecoder()
+                  .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                  .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+              try
+                val value = decoder.decode(java.nio.ByteBuffer.wrap(bytes)).toString
+                if value.codePointCount(0, value.length) != 1 then
+                  Left(PostinoError.InvalidChar(BigInt(-1)))
+                else
+                  val scalar = value.codePointAt(0)
+                  if scalar > Char.MaxValue then Left(PostinoError.InvalidChar(BigInt(scalar)))
+                  else
+                    val char = scalar.toChar
+                    if java.lang.Character.isSurrogate(char) then
+                      Left(PostinoError.InvalidChar(BigInt(char.toInt)))
+                    else Right(char)
+              catch case NonFatal(error) => Left(PostinoError.InvalidUtf8(error.getMessage))
 
   given Codec[Byte] with
     def encode(value: Byte, out: Writer): Either[PostinoError, Unit] =
@@ -98,6 +135,19 @@ private[postino] object PrimitiveCodecs:
         unsigned <- Varint.readUnsigned(in, 64, "u64")
         signed   <- Varint.zigZagDecode(unsigned, 64, "i64")
       yield signed.toLong
+
+  given Codec[BigInt] with
+    def encode(value: BigInt, out: Writer): Either[PostinoError, Unit] =
+      for
+        unsigned <- Varint.zigZagEncode(value, 128, "i128")
+        _        <- Varint.writeUnsigned(unsigned, 128, "u128", out)
+      yield ()
+
+    def decode(in: Reader): Either[PostinoError, BigInt] =
+      for
+        unsigned <- Varint.readUnsigned(in, 128, "u128")
+        signed   <- Varint.zigZagDecode(unsigned, 128, "i128")
+      yield signed
 
   given Codec[Float] with
     def encode(value: Float, out: Writer): Either[PostinoError, Unit] =
@@ -187,6 +237,13 @@ private[postino] object PrimitiveCodecs:
     def decode(in: Reader): Either[PostinoError, U64] =
       Varint.readUnsigned(in, 64, "u64").flatMap(U64.fromBigInt)
 
+  given Codec[U128] with
+    def encode(value: U128, out: Writer): Either[PostinoError, Unit] =
+      Varint.writeUnsigned(value.toBigInt, 128, "u128", out)
+
+    def decode(in: Reader): Either[PostinoError, U128] =
+      Varint.readUnsigned(in, 128, "u128").flatMap(U128.fromBigInt)
+
   private[postino] def writeLength(length: Int, out: Writer): Either[PostinoError, Unit] =
     Varint.writeUnsigned(BigInt(length), 64, "usize", out)
 
@@ -229,6 +286,24 @@ trait LowPriorityCodecs:
     def decode(in: Reader): Either[PostinoError, Vector[A]] =
       decodeIndexed(in, valueCodec).map(_.toVector)
 
+  given mapCodec[K, V](using keyCodec: Codec[K], valueCodec: Codec[V]): Codec[Map[K, V]] with
+    def encode(value: Map[K, V], out: Writer): Either[PostinoError, Unit] =
+      encodeMap(value, keyCodec, valueCodec, out)
+
+    def decode(in: Reader): Either[PostinoError, Map[K, V]] =
+      decodeMap(in, keyCodec, valueCodec)
+
+  given sortedMapCodec[K, V](using
+      keyCodec: Codec[K],
+      valueCodec: Codec[V],
+      ordering: Ordering[K]
+  ): Codec[SortedMap[K, V]] with
+    def encode(value: SortedMap[K, V], out: Writer): Either[PostinoError, Unit] =
+      encodeMap(value, keyCodec, valueCodec, out)
+
+    def decode(in: Reader): Either[PostinoError, SortedMap[K, V]] =
+      decodeSortedMap(in, keyCodec, valueCodec, ordering)
+
   given arrayCodec[A](using valueCodec: Codec[A], classTag: ClassTag[A]): Codec[Array[A]] with
     // Kept low-priority so the Array[Byte] byte-blob codec in Codec wins for raw bytes.
     def encode(value: Array[A], out: Writer): Either[PostinoError, Unit] =
@@ -257,6 +332,17 @@ trait LowPriorityCodecs:
       .flatMap: _ =>
         encodeAll(values.iterator, valueCodec, out)
 
+  private def encodeMap[K, V](
+      values: Iterable[(K, V)],
+      keyCodec: Codec[K],
+      valueCodec: Codec[V],
+      out: Writer
+  ): Either[PostinoError, Unit] =
+    PrimitiveCodecs
+      .writeLength(values.size, out)
+      .flatMap: _ =>
+        encodePairs(values.iterator, keyCodec, valueCodec, out)
+
   @tailrec
   private def encodeAll[A](
       values: Iterator[A],
@@ -267,6 +353,23 @@ trait LowPriorityCodecs:
       valueCodec.encode(values.next(), out) match
         case Right(())   => encodeAll(values, valueCodec, out)
         case Left(error) => Left(error)
+    else Right(())
+
+  @tailrec
+  private def encodePairs[K, V](
+      values: Iterator[(K, V)],
+      keyCodec: Codec[K],
+      valueCodec: Codec[V],
+      out: Writer
+  ): Either[PostinoError, Unit] =
+    if values.hasNext then
+      val (key, value) = values.next()
+      keyCodec.encode(key, out) match
+        case Left(error) => Left(error)
+        case Right(()) =>
+          valueCodec.encode(value, out) match
+            case Right(())   => encodePairs(values, keyCodec, valueCodec, out)
+            case Left(error) => Left(error)
     else Right(())
 
   private def decodeIndexed[A](
@@ -291,6 +394,65 @@ trait LowPriorityCodecs:
             error match
               case Some(cause) => Left(cause)
               case None        => Right(builder.result())
+
+  private def decodeMap[K, V](
+      in: Reader,
+      keyCodec: Codec[K],
+      valueCodec: Codec[V]
+  ): Either[PostinoError, Map[K, V]] =
+    PrimitiveCodecs
+      .readLength(in)
+      .flatMap: length =>
+        in.reserveCollectionElements(length)
+          .flatMap: _ =>
+            val builder = Map.newBuilder[K, V]
+            decodePairs(length, in, keyCodec, valueCodec, (key, value) => builder += ((key, value)))
+              .map(_ => builder.result())
+
+  private def decodeSortedMap[K, V](
+      in: Reader,
+      keyCodec: Codec[K],
+      valueCodec: Codec[V],
+      ordering: Ordering[K]
+  ): Either[PostinoError, SortedMap[K, V]] =
+    PrimitiveCodecs
+      .readLength(in)
+      .flatMap: length =>
+        in.reserveCollectionElements(length)
+          .flatMap: _ =>
+            var values = SortedMap.empty[K, V](using ordering)
+            decodePairs(
+              length,
+              in,
+              keyCodec,
+              valueCodec,
+              (key, value) => values = values.updated(key, value)
+            )
+              .map(_ => values)
+
+  private def decodePairs[K, V](
+      length: Int,
+      in: Reader,
+      keyCodec: Codec[K],
+      valueCodec: Codec[V],
+      add: (K, V) => Unit
+  ): Either[PostinoError, Unit] =
+    var index                       = 0
+    var error: Option[PostinoError] = None
+
+    while index < length && error.isEmpty do
+      keyCodec.decode(in) match
+        case Left(cause) => error = Some(cause)
+        case Right(key) =>
+          valueCodec.decode(in) match
+            case Left(cause) => error = Some(cause)
+            case Right(value) =>
+              add(key, value)
+              index += 1
+
+    error match
+      case Some(cause) => Left(cause)
+      case None        => Right(())
 
 private[postino] object ProductCodecs:
   inline def derivedProduct[A](mirror: Mirror.ProductOf[A]): Codec[A] =

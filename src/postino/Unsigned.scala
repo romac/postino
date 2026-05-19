@@ -59,3 +59,16 @@ object U64:
   private def unsignedLongToBigInt(bits: Long): BigInt =
     if bits >= 0 then BigInt(bits)
     else (BigInt(bits >>> 1) << 1) + BigInt(bits & 1L)
+
+final class U128 private (val toBigInt: BigInt) extends AnyVal:
+  override def toString: String = toBigInt.toString
+
+object U128:
+  val MaxValue: BigInt = (BigInt(1) << 128) - 1
+
+  def fromBigInt(value: BigInt): Either[PostinoError, U128] =
+    if value >= 0 && value <= MaxValue then Right(new U128(value))
+    else Left(PostinoError.InvalidUnsignedValue("u128", value))
+
+  def unsafeFromBigInt(value: BigInt): U128 =
+    fromBigInt(value).fold(error => throw new IllegalArgumentException(error.message), identity)

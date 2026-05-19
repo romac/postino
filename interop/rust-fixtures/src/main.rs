@@ -1,4 +1,5 @@
 use serde::{Serialize, Serializer};
+use std::collections::BTreeMap;
 
 #[derive(Serialize)]
 struct Sensor<'a> {
@@ -55,6 +56,11 @@ fn main() {
     print_fixture("i32_300", &300i32);
     print_fixture("i64_minus_one", &-1i64);
     print_fixture("i64_min", &i64::MIN);
+    print_fixture("char_e_acute", &'\u{00e9}');
+    print_fixture("i128_300", &300i128);
+    print_fixture("i128_minus_one", &-1i128);
+    print_fixture("i128_min", &i128::MIN);
+    print_fixture("u128_340282366920938463463374607431768211455", &u128::MAX);
     print_fixture("float_1", &1.0f32);
     print_fixture("double_1_5", &1.5f64);
     print_fixture("u16_65535", &u16::MAX);
@@ -68,6 +74,10 @@ fn main() {
     print_fixture("option_option_i32_some_some_300", &Some(Some(300i32)));
     print_fixture("empty_vec_i16", &Vec::<i16>::new());
     print_fixture("list", &vec![1i16, -1i16, 300i16]);
+    print_fixture(
+        "map_i32_string",
+        &BTreeMap::from([(1i32, "one"), (2i32, "two")]),
+    );
     print_fixture(
         "sensor",
         &Sensor {

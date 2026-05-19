@@ -2,6 +2,7 @@ package postino
 
 import munit.FunSuite
 
+import scala.collection.immutable.{ListMap, SortedMap}
 import scala.io.Source
 
 final class PostinoSuite extends FunSuite:
@@ -44,6 +45,14 @@ final class PostinoSuite extends FunSuite:
     assertFixtureRoundTrip("i32_300", 300)
     assertFixtureRoundTrip("i64_minus_one", -1L)
     assertFixtureRoundTrip("i64_min", Long.MinValue)
+    assertFixtureRoundTrip("char_e_acute", '\u00e9')
+    assertFixtureRoundTrip("i128_300", BigInt(300))
+    assertFixtureRoundTrip("i128_minus_one", BigInt(-1))
+    assertFixtureRoundTrip("i128_min", -(BigInt(1) << 127))
+    assertFixtureRoundTrip(
+      "u128_340282366920938463463374607431768211455",
+      U128.unsafeFromBigInt(U128.MaxValue)
+    )
     assertFixtureRoundTrip("float_1", 1.0f)
     assertFixtureRoundTrip("double_1_5", 1.5d)
     assertFixtureRoundTrip("u16_65535", U16.unsafeFromInt(0xffff))
@@ -55,6 +64,28 @@ final class PostinoSuite extends FunSuite:
     assertEquals(U64.fromUnsignedLong(-1L).toUnsignedLong, -1L)
     assertEquals(U64.fromUnsignedLong(-1L).toBigInt, U64.MaxValue)
     assertEquals(U64.fromUnsignedLong(Long.MinValue).toBigInt, BigInt(1) << 63)
+
+  test("U128 constructors enforce unsigned values"):
+    assertEquals(U128.fromBigInt(-1), Left(PostinoError.InvalidUnsignedValue("u128", BigInt(-1))))
+    assertEquals(
+      U128.fromBigInt(U128.MaxValue + 1),
+      Left(PostinoError.InvalidUnsignedValue("u128", U128.MaxValue + 1))
+    )
+    assertEquals(U128.fromBigInt(U128.MaxValue).map(_.toBigInt), Right(U128.MaxValue))
+
+  test("char codec rejects values Scala Char cannot represent as Rust char"):
+    assertEquals(Postino.encode(0xd800.toChar), Left(PostinoError.InvalidChar(BigInt(0xd800))))
+    assertEquals(
+      Postino.decode[Char](bytes(0x04, 0xf0, 0x9f, 0x98, 0x80)),
+      Left(PostinoError.InvalidChar(BigInt(0x1f600)))
+    )
+
+  test("i128 codec rejects values outside the signed 128-bit range"):
+    assertEquals(Postino.encode(BigInt(1) << 127), Left(PostinoError.VarintOverflow("i128")))
+    assertEquals(
+      Postino.encode(-(BigInt(1) << 127) - 1),
+      Left(PostinoError.VarintOverflow("i128"))
+    )
 
   test("strings and byte arrays match Rust postcard fixture bytes"):
     assertFixtureRoundTrip("string", "postino")
@@ -73,11 +104,37 @@ final class PostinoSuite extends FunSuite:
     assertFixtureRoundTrip("empty_vec_i16", List.empty[Short])
     assertFixtureRoundTrip("list", List[Short](1, -1, 300))
 
+  test("maps match Rust postcard fixture bytes"):
+    val sorted = SortedMap(1 -> "one", 2 -> "two")
+
+    assertFixtureRoundTrip[SortedMap[Int, String]]("map_i32_string", sorted)
+    assertFixtureEncoded[Map[Int, String]]("map_i32_string", sorted)
+    assertEquals(
+      Postino.decode[Map[Int, String]](fixtureBytes("map_i32_string")),
+      Right(sorted.toMap)
+    )
+
+  test("map encoding preserves the provided iteration order"):
+    val ordered: Map[Int, String] = ListMap(2 -> "two", 1 -> "one")
+
+    assertEquals(
+      Postino.encode[Map[Int, String]](ordered).map(unsigned),
+      Right(Vector(0x02, 0x04, 0x03, 0x74, 0x77, 0x6f, 0x02, 0x03, 0x6f, 0x6e, 0x65))
+    )
+
   test("sequence decode rejects lengths over the configured maximum"):
     val decodeOptions = DecodeOptions(maxCollectionLength = 2, maxCollectionElements = 10)
 
     assertEquals(
       Postino.decode[List[Unit]](bytes(0x03), decodeOptions),
+      Left(PostinoError.CollectionLengthTooLarge(3, 2))
+    )
+
+  test("map decode rejects lengths over the configured maximum"):
+    val decodeOptions = DecodeOptions(maxCollectionLength = 2, maxCollectionElements = 10)
+
+    assertEquals(
+      Postino.decode[Map[Unit, Unit]](bytes(0x03), decodeOptions),
       Left(PostinoError.CollectionLengthTooLarge(3, 2))
     )
 
@@ -199,6 +256,14 @@ final class PostinoSuite extends FunSuite:
     assertEquals(
       Postino.decode[U16](bytes(0xff, 0xff, 0x04)),
       Left(PostinoError.VarintOverflow("u16"))
+    )
+    assertEquals(
+      Postino.decode[U128](bytes(Vector.fill(19)(0x80)*)),
+      Left(PostinoError.VarintTooLong(19))
+    )
+    assertEquals(
+      Postino.decode[U128](bytes((Vector.fill(18)(0xff) :+ 0x04)*)),
+      Left(PostinoError.VarintOverflow("u128"))
     )
     assertEquals(Postino.decode[Message](bytes(0x7f)), Left(PostinoError.UnknownVariant(127)))
 

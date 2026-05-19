@@ -36,6 +36,9 @@ object PostinoError:
   final case class InvalidUtf8(reason: String) extends PostinoError:
     def message = s"invalid UTF-8 string: $reason"
 
+  final case class InvalidChar(value: BigInt) extends PostinoError:
+    def message = s"invalid Unicode scalar value $value for Scala Char"
+
   final case class TrailingBytes(count: Int, offset: Int) extends PostinoError:
     def message = s"$count trailing byte(s) starting at offset $offset"
 

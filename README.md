@@ -108,23 +108,27 @@ The core module includes bidirectional codecs for:
 
 - `Unit`
 - `Boolean`
+- `Char`
 - `Byte`
 - `Short`
 - `Int`
 - `Long`
+- `BigInt` for Rust `i128`
 - `Float`
 - `Double`
 - `String`
 - `Array[Byte]`
-- unsigned wrappers `U16`, `U32`, and `U64`
+- unsigned wrappers `U16`, `U32`, `U64`, and `U128`
 - `Option[A]`
 - `List[A]`
 - `Vector[A]`
 - `Array[A]`
+- `Map[K, V]`
+- `SortedMap[K, V]`
 - case class products via `derives Codec`
 - explicit ADTs and enums via `Postino.sum`
 
-Scala has no native unsigned integer types matching Rust `u16`, `u32`, and `u64`, so Postino exposes wrappers:
+Scala has no native unsigned integer types matching Rust `u16`, `u32`, `u64`, and `u128`, so Postino exposes wrappers:
 
 ```scala
 val port: Either[PostinoError, U16] =
@@ -138,8 +142,14 @@ Use the safe constructors when decoding external input into your own model.
 The `unsafeFrom...` helpers throw `IllegalArgumentException` and are mainly for tests, examples, and constants.
 `U64.fromLong` treats its input as a signed JVM `Long` and rejects negative values; use `U64.fromUnsignedLong(bits)` when you already have the raw unsigned 64-bit bit pattern.
 Use `u64.toBigInt` for the numeric unsigned value and `u64.toUnsignedLong` for the raw JVM `Long` bit pattern.
+Use `BigInt` for Rust `i128`; values outside the signed 128-bit range fail with `PostinoError.VarintOverflow`.
+Use `U128` for Rust `u128`.
 
 Rust `u8` values use the raw `Byte` codec. Values above 127 appear as negative Scala `Byte` values; mask with `byte & 0xff` when you need the unsigned integer view.
+
+Rust `char` values encode as a UTF-8 byte length followed by the scalar's bytes. Use the Scala `Char` codec when they fit in a single non-surrogate UTF-16 code unit. Supplementary Rust scalar values need a schema-level representation other than Scala `Char`.
+
+Map codecs encode exactly the map value's iteration order. Use `SortedMap[K, V]` when you need stable key order compatible with Rust `BTreeMap`; Rust `HashMap` wire order is not stable.
 
 ## Decode Limits
 
@@ -191,9 +201,6 @@ Postino v0 does not support:
 - streaming flavors
 - Serde attributes
 - schema evolution
-- `u128` or `i128`
-- Rust maps
-- Rust `char`
 - automatic sum derivation
 - Circe integration
 

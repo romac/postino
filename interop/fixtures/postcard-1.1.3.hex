@@ -5,6 +5,11 @@ i16_minus_two: 03
 i32_300: d8 04
 i64_minus_one: 01
 i64_min: ff ff ff ff ff ff ff ff ff 01
+char_e_acute: 02 c3 a9
+i128_300: d8 04
+i128_minus_one: 01
+i128_min: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff 03
+u128_340282366920938463463374607431768211455: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff 03
 float_1: 00 00 80 3f
 double_1_5: 00 00 00 00 00 00 f8 3f
 u16_65535: ff ff 03
@@ -18,6 +23,7 @@ option_option_i32_some_none: 01 00
 option_option_i32_some_some_300: 01 01 d8 04
 empty_vec_i16: 00
 list: 03 02 01 d8 04
+map_i32_string: 02 02 03 6f 6e 65 04 03 74 77 6f
 sensor: b4 24 29 03 6c 61 62
 envelope: 07 54 04 72 61 63 6b 03 01 00 02 01 02 6f 6b 03 01 02 03
 enum_ping: 00
