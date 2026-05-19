@@ -19,6 +19,9 @@ final class PostinoSuite extends FunSuite:
   final case class Pong(id: U16)            extends Message derives Codec
   final case class Data(bytes: Array[Byte]) extends Message derives Codec
 
+  sealed trait WideMessage
+  final case class HighDiscriminant() extends WideMessage derives Codec
+
   given Codec[Message] =
     Postino
       .sum[Message]
@@ -27,11 +30,20 @@ final class PostinoSuite extends FunSuite:
       .variant(2, Codec[Data])
       .build
 
+  given Codec[WideMessage] =
+    Postino
+      .sum[WideMessage]
+      .variant(128, Codec[HighDiscriminant])
+      .build
+
   test("primitive codecs match Rust postcard fixture bytes"):
     assertFixtureRoundTrip("bool_true", true)
     assertFixtureRoundTrip("byte_minus_one", (-1).toByte)
+    assertFixtureRoundTrip("u8_255", 0xff.toByte)
     assertFixtureRoundTrip("i16_minus_two", (-2).toShort)
     assertFixtureRoundTrip("i32_300", 300)
+    assertFixtureRoundTrip("i64_minus_one", -1L)
+    assertFixtureRoundTrip("i64_min", Long.MinValue)
     assertFixtureRoundTrip("float_1", 1.0f)
     assertFixtureRoundTrip("double_1_5", 1.5d)
     assertFixtureRoundTrip("u16_65535", U16.unsafeFromInt(0xffff))
@@ -56,6 +68,9 @@ final class PostinoSuite extends FunSuite:
   test("options and sequences match Rust postcard fixture bytes"):
     assertFixtureRoundTrip("option_i32_none", Option.empty[Int])
     assertFixtureRoundTrip("option_i32_some_300", Option(300))
+    assertFixtureRoundTrip[Option[Option[Int]]]("option_option_i32_some_none", Some(None))
+    assertFixtureRoundTrip[Option[Option[Int]]]("option_option_i32_some_some_300", Some(Some(300)))
+    assertFixtureRoundTrip("empty_vec_i16", List.empty[Short])
     assertFixtureRoundTrip("list", List[Short](1, -1, 300))
 
   test("sequence decode rejects lengths over the configured maximum"):
@@ -127,6 +142,7 @@ final class PostinoSuite extends FunSuite:
     assertFixtureRoundTrip[Message]("enum_ping", Ping())
     assertFixtureRoundTrip[Message]("enum_pong", Pong(U16.unsafeFromInt(0xabcd)))
     assertFixtureEncoded[Message]("enum_data", Data(Array[Byte](9, 8, 7)))
+    assertFixtureRoundTrip[WideMessage]("enum_discriminant_128", HighDiscriminant())
 
     assertEquals(
       Postino

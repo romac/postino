@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 
 #[derive(Serialize)]
 struct Sensor<'a> {
@@ -22,6 +22,21 @@ enum Message<'a> {
     Data(&'a [u8]),
 }
 
+enum WideMessage {
+    High,
+}
+
+impl Serialize for WideMessage {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            WideMessage::High => serializer.serialize_unit_variant("WideMessage", 128, "High"),
+        }
+    }
+}
+
 fn print_fixture<T: Serialize>(name: &str, value: &T) {
     let bytes = postcard::to_stdvec(value).unwrap();
     let hex = bytes
@@ -35,8 +50,11 @@ fn print_fixture<T: Serialize>(name: &str, value: &T) {
 fn main() {
     print_fixture("bool_true", &true);
     print_fixture("byte_minus_one", &-1i8);
+    print_fixture("u8_255", &u8::MAX);
     print_fixture("i16_minus_two", &-2i16);
     print_fixture("i32_300", &300i32);
+    print_fixture("i64_minus_one", &-1i64);
+    print_fixture("i64_min", &i64::MIN);
     print_fixture("float_1", &1.0f32);
     print_fixture("double_1_5", &1.5f64);
     print_fixture("u16_65535", &u16::MAX);
@@ -46,6 +64,9 @@ fn main() {
     print_fixture("bytes", &vec![0xde_u8, 0xad, 0xbe, 0xef]);
     print_fixture("option_i32_none", &None::<i32>);
     print_fixture("option_i32_some_300", &Some(300i32));
+    print_fixture("option_option_i32_some_none", &Some(None::<i32>));
+    print_fixture("option_option_i32_some_some_300", &Some(Some(300i32)));
+    print_fixture("empty_vec_i16", &Vec::<i16>::new());
     print_fixture("list", &vec![1i16, -1i16, 300i16]);
     print_fixture(
         "sensor",
@@ -71,4 +92,5 @@ fn main() {
     print_fixture("enum_ping", &Message::Ping);
     print_fixture("enum_pong", &Message::Pong { id: 0xabcd });
     print_fixture("enum_data", &Message::Data(&[9, 8, 7]));
+    print_fixture("enum_discriminant_128", &WideMessage::High);
 }
