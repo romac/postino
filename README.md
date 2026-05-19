@@ -19,9 +19,9 @@ Postino is intentionally small:
 - optional scodec adapter in a separate Mill module
 
 Mill publishing metadata is configured for local Maven/Ivy publishing and
-Sonatype Central release tasks. The default development coordinates are
-`me.romac::postino:0.1.0-SNAPSHOT` and
-`me.romac::postino-scodec:0.1.0-SNAPSHOT`; set `POSTINO_GROUP_ID` and
+Sonatype Central release tasks. The default milestone coordinates are
+`me.romac::postino:0.1.0-M1` and
+`me.romac::postino-scodec:0.1.0-M1`; set `POSTINO_GROUP_ID` and
 `POSTINO_VERSION` when publishing under different coordinates.
 
 ## Modules
@@ -66,8 +66,8 @@ The core and scodec modules both expose Mill publish tasks.
 Default local coordinates:
 
 ```scala
-ivy"me.romac::postino:0.1.0-SNAPSHOT"
-ivy"me.romac::postino-scodec:0.1.0-SNAPSHOT"
+ivy"me.romac::postino:0.1.0-M1"
+ivy"me.romac::postino-scodec:0.1.0-M1"
 ```
 
 Publish both modules to a local Maven repository path:
@@ -80,16 +80,21 @@ Publish both modules to a local Maven repository path:
 Publish with release coordinates:
 
 ```text
-POSTINO_GROUP_ID=me.romac POSTINO_VERSION=0.1.0 \
+POSTINO_GROUP_ID=me.romac POSTINO_VERSION=0.1.0-M1 \
   ./mill --no-server publishM2Local --m2RepoPath out/local-m2
 
-POSTINO_GROUP_ID=me.romac POSTINO_VERSION=0.1.0 \
+POSTINO_GROUP_ID=me.romac POSTINO_VERSION=0.1.0-M1 \
   ./mill --no-server postinoScodec.publishM2Local --m2RepoPath out/local-m2
 ```
 
 `publishLocal` publishes to the local Ivy repository. `publishSonatypeCentral`
-is available on each module for a real Central release once credentials, PGP
-signing, and project license metadata are in place.
+is available on each module for a real Central release once credentials and PGP
+signing are in place.
+
+## License
+
+Postino is licensed under the Apache License, Version 2.0. See
+[LICENSE](LICENSE).
 
 ## Core API
 
