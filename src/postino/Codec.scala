@@ -378,7 +378,7 @@ trait LowPriorityCodecs:
     PrimitiveCodecs
       .readLength(in)
       .flatMap: length =>
-        in.reserveCollectionElements(length)
+        in.reserveCollection(length, length.toLong)
           .flatMap: _ =>
             val builder                     = IndexedSeq.newBuilder[A]
             var index                       = 0
@@ -402,7 +402,7 @@ trait LowPriorityCodecs:
     PrimitiveCodecs
       .readLength(in)
       .flatMap: length =>
-        in.reserveCollectionElements(length)
+        in.reserveCollection(length, length.toLong * 2L)
           .flatMap: _ =>
             val builder = Map.newBuilder[K, V]
             decodePairs(length, in, keyCodec, valueCodec, (key, value) => builder += ((key, value)))
@@ -417,7 +417,7 @@ trait LowPriorityCodecs:
     PrimitiveCodecs
       .readLength(in)
       .flatMap: length =>
-        in.reserveCollectionElements(length)
+        in.reserveCollection(length, length.toLong * 2L)
           .flatMap: _ =>
             var values = SortedMap.empty[K, V](using ordering)
             decodePairs(

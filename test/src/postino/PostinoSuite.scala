@@ -152,6 +152,14 @@ final class PostinoSuite extends FunSuite:
       Left(PostinoError.CollectionElementLimitExceeded(3, 0, 5))
     )
 
+  test("map decode applies the total collection element budget to keys and values"):
+    val decodeOptions = DecodeOptions(maxCollectionLength = 3, maxCollectionElements = 5)
+
+    assertEquals(
+      Postino.decode[Map[Unit, Unit]](bytes(0x03), decodeOptions),
+      Left(PostinoError.CollectionElementLimitExceeded(6, 5, 5))
+    )
+
   test("reader rejects negative byte lengths distinctly"):
     assertEquals(
       Reader.from(Array.emptyByteArray).readBytes(-1),

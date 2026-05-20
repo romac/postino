@@ -25,10 +25,10 @@ object PostinoError:
   final case class CollectionLengthTooLarge(length: Int, max: Int) extends PostinoError:
     def message = s"collection length $length exceeds configured maximum $max"
 
-  final case class CollectionElementLimitExceeded(requested: Int, remaining: Long, max: Long)
+  final case class CollectionElementLimitExceeded(requested: Long, remaining: Long, max: Long)
       extends PostinoError:
     def message =
-      s"collection length $requested exceeds remaining element budget $remaining of $max"
+      s"collection element count $requested exceeds remaining budget $remaining of $max"
 
   final case class InvalidBoolean(value: Int) extends PostinoError:
     def message = s"invalid boolean tag $value"

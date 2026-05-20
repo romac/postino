@@ -33,19 +33,22 @@ final class Reader private (
           if atEnd then Right(())
           else Left(PostinoError.TrailingBytes(1, position))
 
-  private[postino] def reserveCollectionElements(length: Int): Either[PostinoError, Unit] =
+  private[postino] def reserveCollection(
+      length: Int,
+      elementCount: Long
+  ): Either[PostinoError, Unit] =
     if length > decodeOptions.maxCollectionLength then
       Left(PostinoError.CollectionLengthTooLarge(length, decodeOptions.maxCollectionLength))
-    else if length.toLong > remainingCollectionElements then
+    else if elementCount > remainingCollectionElements then
       Left(
         PostinoError.CollectionElementLimitExceeded(
-          length,
+          elementCount,
           remainingCollectionElements,
           decodeOptions.maxCollectionElements
         )
       )
     else
-      remainingCollectionElements -= length.toLong
+      remainingCollectionElements -= elementCount
       Right(())
 
 object Reader:
