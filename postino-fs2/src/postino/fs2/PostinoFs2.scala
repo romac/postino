@@ -1,14 +1,14 @@
 package postino.fs2
 
 import postino.{DecodeOptions, Decoder, Encoder, PostinoError}
-import _root_.fs2.{Pipe, Pull, RaiseThrowable, Stream}
+import _root_.fs2.{Chunk, Pipe, Pull, RaiseThrowable, Stream}
 
 object PostinoFs2:
   def encodeCobs[F[_], A](using Encoder[A], RaiseThrowable[F]): Pipe[F, A, Byte] =
     values =>
       values.flatMap: value =>
         postino.Postino.encodeCobs(value) match
-          case Right(bytes) => Stream.emits(bytes.toSeq)
+          case Right(bytes) => Stream.chunk(Chunk.array(bytes))
           case Left(error)  => Stream.raiseError(PostinoFs2Exception(error))
 
   def decodeCobs[F[_], A](using Decoder[A], RaiseThrowable[F]): Pipe[F, Byte, A] =
@@ -41,18 +41,11 @@ object PostinoFs2:
       frames: Vector[Array[Byte]],
       decodeOptions: DecodeOptions
   )(using Decoder[A], RaiseThrowable[F]): Pull[F, A, Unit] =
-    var index                  = 0
-    var pull: Pull[F, A, Unit] = Pull.done
-
-    while index < frames.length do
-      val frame = frames(index)
-      pull = pull.flatMap: _ =>
+    frames.foldLeft(Pull.done: Pull[F, A, Unit]): (pull, frame) =>
+      pull.flatMap: _ =>
         postino.Postino.decodeCobs[A](frame, decodeOptions) match
           case Right(value) => Pull.output1(value)
           case Left(error)  => Pull.raiseError(PostinoFs2Exception(error))
-      index += 1
-
-    pull
 
   private def splitFrames(buffer: FrameBuffer, bytes: Iterator[Byte]): SplitFrames =
     val frames                      = Vector.newBuilder[Array[Byte]]
