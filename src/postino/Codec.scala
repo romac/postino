@@ -417,15 +417,15 @@ trait LowPriorityCodecs:
       .flatMap: length =>
         in.reserveCollection(length, length.toLong * 2L)
           .flatMap: _ =>
-            var values = SortedMap.empty[K, V](using ordering)
+            val builder = SortedMap.newBuilder[K, V](using ordering)
             decodePairs(
               length,
               in,
               keyCodec,
               valueCodec,
-              (key, value) => values = values.updated(key, value)
+              (key, value) => builder += ((key, value))
             )
-              .map(_ => values)
+              .map(_ => builder.result())
 
   private def decodePairs[K, V](
       length: Int,
