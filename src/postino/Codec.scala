@@ -7,10 +7,12 @@ import scala.deriving.Mirror
 import scala.reflect.ClassTag
 import scala.util.control.NonFatal
 
-trait Encoder[-A]:
+// These type classes stay invariant so subtype codecs, such as SortedMap codecs,
+// do not compete for supertypes during given search.
+trait Encoder[A]:
   def encode(value: A, out: Writer): Either[PostinoError, Unit]
 
-trait Decoder[+A]:
+trait Decoder[A]:
   def decode(in: Reader): Either[PostinoError, A]
 
 trait Codec[A] extends Encoder[A] with Decoder[A]
