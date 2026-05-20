@@ -158,6 +158,17 @@ final class PostinoSuite extends FunSuite:
       Left(PostinoError.NegativeLength(-1))
     )
 
+  test("byte blob decode rejects lengths over the configured maximum"):
+    val decodeOptions = DecodeOptions(maxByteLength = 4)
+
+    assertEquals(
+      Postino.decodeFrom[String](
+        ByteArrayInputStream(bytes(0xff, 0xff, 0xff, 0xff, 0x07)),
+        decodeOptions
+      ),
+      Left(PostinoError.ByteLengthTooLarge(Int.MaxValue, 4))
+    )
+
   test("streaming encode writes postcard bytes to an OutputStream"):
     val output = ByteArrayOutputStream()
 

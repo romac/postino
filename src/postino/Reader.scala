@@ -18,7 +18,10 @@ final class Reader private (
     readByte().map(_ & 0xff)
 
   def readBytes(length: Int): Either[PostinoError, Array[Byte]] =
-    source.readBytes(length)
+    if length < 0 then Left(PostinoError.NegativeLength(length))
+    else if length > decodeOptions.maxByteLength then
+      Left(PostinoError.ByteLengthTooLarge(length, decodeOptions.maxByteLength))
+    else source.readBytes(length)
 
   private[postino] def finish(): Either[PostinoError, Unit] =
     source.remaining match

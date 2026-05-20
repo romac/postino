@@ -220,13 +220,17 @@ Map codecs encode exactly the map value's iteration order. Use `SortedMap[K, V]`
 
 ## Decode Limits
 
-Collection decoders enforce configurable safety limits so small inputs cannot request unbounded decode work. The defaults allow at most 1,000,000 elements in one collection and 1,000,000 collection elements across a whole top-level decode.
+Collection and byte-blob decoders enforce configurable safety limits so small inputs cannot request unbounded decode work. The defaults allow at most 1,000,000 elements in one collection, 1,000,000 collection elements across a whole top-level decode, and 1,000,000 bytes in one `String` or `Array[Byte]`.
 
 ```scala
 val decoded =
   Postino.decode[List[Int]](
     bytes,
-    DecodeOptions(maxCollectionLength = 1024, maxCollectionElements = 4096)
+    DecodeOptions(
+      maxCollectionLength = 1024,
+      maxCollectionElements = 4096,
+      maxByteLength = 1024 * 1024
+    )
   )
 ```
 

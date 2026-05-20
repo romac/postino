@@ -68,15 +68,17 @@ object Source:
     def readBytes(length: Int): Either[PostinoError, Array[Byte]] =
       if length < 0 then Left(PostinoError.NegativeLength(length))
       else
-        val value = new Array[Byte](length)
-        var read  = 0
-        while read < length do
-          readSome(value, read, length - read) match
+        val value     = java.io.ByteArrayOutputStream(length.min(8192))
+        val buffer    = new Array[Byte](length.min(8192))
+        var remaining = length
+        while remaining > 0 do
+          readSome(buffer, 0, remaining.min(buffer.length)) match
             case Right(count) =>
-              read += count
+              value.write(buffer, 0, count)
+              remaining -= count
               offset += count.toLong
             case Left(error) => return Left(error)
-        Right(value)
+        Right(value.toByteArray)
 
     def atEnd: Either[PostinoError, Boolean] =
       try

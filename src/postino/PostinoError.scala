@@ -19,6 +19,9 @@ object PostinoError:
   final case class NegativeLength(length: Int) extends PostinoError:
     def message = s"negative byte length $length"
 
+  final case class ByteLengthTooLarge(length: Int, max: Int) extends PostinoError:
+    def message = s"byte length $length exceeds configured maximum $max"
+
   final case class CollectionLengthTooLarge(length: Int, max: Int) extends PostinoError:
     def message = s"collection length $length exceeds configured maximum $max"
 
