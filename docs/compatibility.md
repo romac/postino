@@ -52,7 +52,8 @@ ordered key/value entry arrays.
 
 The optional FS2 adapter is also outside the postcard wire format. It exposes
 COBS-framed encode/decode pipes over `fs2.Stream`, raising `PostinoFs2Exception`
-for structured `PostinoError` values.
+for structured `PostinoError` values. Its COBS decoder buffers one frame at a
+time and rejects frames larger than `DecodeOptions.maxByteLength`.
 
 Streaming decode for raw postcard payloads expects a finite source and checks for
 trailing bytes at the end. Raw postcard is not self-delimiting on an endless byte

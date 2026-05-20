@@ -51,6 +51,9 @@ object PostinoError:
   final case class CobsFraming(reason: String) extends PostinoError:
     def message = s"invalid COBS frame: $reason"
 
+  final case class CobsFrameTooLarge(length: Int, max: Int) extends PostinoError:
+    def message = s"COBS frame length $length exceeds configured maximum $max"
+
   final case class CobsZeroInPayload(offset: Int) extends PostinoError:
     def message = s"COBS frame contains zero byte before terminator at offset $offset"
 

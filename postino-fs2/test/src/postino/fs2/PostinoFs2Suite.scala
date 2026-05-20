@@ -67,6 +67,14 @@ final class PostinoFs2Suite extends FunSuite:
 
     assertPostinoError(result, PostinoError.CobsFraming("missing terminator"))
 
+  test("decodeCobs enforces the configured frame byte limit across chunks"):
+    val result =
+      (Stream.emits(Array[Byte](0x02)) ++ Stream.emits(Array[Byte](0x01, 0x01)))
+        .through(PostinoFs2.decodeCobs[Fallible, Boolean](DecodeOptions(maxByteLength = 2)))
+        .toList
+
+    assertPostinoError(result, PostinoError.CobsFrameTooLarge(3, 2))
+
   test("decodeCobs uses configured Postino decode options"):
     val frame = Postino.encodeCobs(List[Unit]((), ())).toOption.get
     val result =

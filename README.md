@@ -313,7 +313,7 @@ val decoded: fs2.Pipe[fs2.Fallible, Byte, Sensor] =
   PostinoFs2.decodeCobs[Fallible, Sensor]
 ```
 
-The pipes require an FS2 effect that can raise `Throwable`, such as `cats.effect.IO` or `fs2.Fallible`. Postino errors are raised as `PostinoFs2Exception`, preserving the structured `PostinoError` value.
+The pipes require an FS2 effect that can raise `Throwable`, such as `cats.effect.IO` or `fs2.Fallible`. Postino errors are raised as `PostinoFs2Exception`, preserving the structured `PostinoError` value. `PostinoFs2.decodeCobs` buffers one frame at a time and rejects frames larger than `DecodeOptions.maxByteLength`.
 
 ## Limitations
 
