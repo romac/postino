@@ -11,7 +11,7 @@ final class Writer private (private val sink: Sink):
   def writeBytes(values: Array[Byte]): Either[PostinoError, Unit] =
     sink.writeBytes(values)
 
-  def toByteArray: Array[Byte] =
+  private[postino] def toByteArray: Array[Byte] =
     sink match
       case arraySink: Sink.ArraySink => arraySink.toByteArray
       case _ => throw UnsupportedOperationException("Writer is not array-backed")
