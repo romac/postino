@@ -287,6 +287,8 @@ Products encode as JSON objects using Scala mirror field names. Sums encode as t
 
 Maps encode as ordered arrays of `{ "key": ..., "value": ... }` entries so non-string keys and wire-order-sensitive maps stay representable.
 
+Options encode as JSON `null` for `None` and as the inner JSON value for `Some`. That keeps ordinary optional fields compact, but nested options do not round-trip through this JSON projection because `None` and `Some(None)` both become `null`; the postcard wire codec still preserves nested options.
+
 ## FS2 Adapter
 
 The optional FS2 module provides COBS-framed pipes for byte streams. Each input value becomes one postcard COBS frame, and decoding waits for the `0x00` frame terminator before handing the frame to `Postino.decodeCobs`.

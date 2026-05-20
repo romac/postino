@@ -50,7 +50,8 @@ parameters and postcard's little-endian checksum bytes. Callers can pass another
 The optional Circe adapter is outside the postcard wire format. It derives a
 schema-driven JSON projection from the same Scala mirror shape: products are JSON
 objects with field names, sums use `{ "tag": "...", "value": ... }`, and maps use
-ordered key/value entry arrays.
+ordered key/value entry arrays. Options use JSON `null` for `None`, so nested
+options are not lossless in the JSON projection.
 
 The optional FS2 adapter is also outside the postcard wire format. It exposes
 COBS-framed encode/decode pipes over `fs2.Stream`, raising `PostinoFs2Exception`
