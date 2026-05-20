@@ -12,7 +12,7 @@
 - `Mirror.SumOf` children are walked in declaration order, and each child must have its own `Codec`.
 - Runtime encode uses `mirror.ordinal(value)` as the `u32` discriminant, then delegates to the child codec at that ordinal.
 - Runtime decode reads a `u32` discriminant and indexes into the same declaration-order child codec table.
-- This path is only for schemas where Scala declaration order exactly matches Rust enum declaration order.
+- This path is only for sealed trait hierarchies where Scala declaration order exactly matches Rust enum declaration order. Plain Scala 3 `enum` cases are not auto-derived unless the user supplies child codecs explicitly.
 
 **Sums** (`SumCodecBuilder`):
 - Manual fluent builder. Each `.variant(disc, Codec[B])` appends `(discriminant, codec, ClassTag[B])` to a `Vector`.

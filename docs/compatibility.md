@@ -19,7 +19,7 @@ Supported:
 - sequences as `varint(usize)` length followed by each element
 - maps as `varint(usize)` length followed by key/value pairs
 - case classes/products as constructor fields in order, with no field names and no length prefix
-- ADTs/enums as a `u32` varint discriminant followed by the selected payload
+- sum schemas as a `u32` varint discriminant followed by the selected payload
 - COBS frames produced by `postcard::to_stdvec_cobs`, including the final zero terminator
 - CRC frames with a trailing little-endian checksum over the encoded payload
 - finite Java `InputStream` / `OutputStream` encode/decode through the same wire format
@@ -33,7 +33,9 @@ Postcard maps preserve the encoder-side iteration order on the wire. Rust
 order. Postino mirrors this: `Map[K, V]` encodes using the map value's iterator,
 while `SortedMap[K, V]` encodes in its `Ordering[K]` order.
 
-Derived sum codecs assign enum discriminants in Scala declaration order (`0..n-1`).
+Derived sum codecs assign discriminants in Scala declaration order (`0..n-1`)
+for sealed trait hierarchies where every child subtype has its own `Codec`.
+Scala 3 `enum` cases are not auto-derived today.
 Use `Postino.sum[A].variant(...).build` when the Rust enum uses custom, sparse, or
 non-declaration-order discriminants.
 
