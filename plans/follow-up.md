@@ -8,7 +8,7 @@ Each phase ends with: Rust fixtures in `interop/rust-fixtures/src/main.rs`, rege
 
 **Goal:** close the obvious "missing primitive" gaps without touching the core architecture.
 
-1. **`char`** — Rust encodes as a `u32` varint of the Unicode scalar value. Add a `Codec[Char]` in `PrimitiveCodecs`, reject surrogates on decode (`PostinoError.InvalidChar`), reuse the existing `u32` varint path.
+1. **`char`** — Rust encodes as a `usize` byte length followed by the scalar's UTF-8 bytes. Add a `Codec[Char]` in `PrimitiveCodecs`, reject surrogates and supplementary scalar values on decode (`PostinoError.InvalidChar`), and reject payloads that decode to anything other than one Unicode scalar value.
 2. **`u128` / `i128`** — extend `Varint.scala` with 19-byte capped LEB128; add `U128` value class in `Unsigned.scala` mirroring `U64` (`fromBigInt`, `unsafeFromBigInt`, `MaxValue`); zigzag for `i128` in `PrimitiveCodecs`. Decide Scala carrier: `BigInt` for both (no native 128-bit type).
 3. **Rust maps** — length-prefixed `(K, V)` sequences. Provide `Codec[Map[K, V]]` and `Codec[SortedMap[K, V]]`. Document that postcard preserves iteration order of the encoder side; `BTreeMap` on the Rust side is sorted, `HashMap` is not — surface this in `docs/compatibility.md`.
 
@@ -27,7 +27,7 @@ Each phase ends with: Rust fixtures in `interop/rust-fixtures/src/main.rs`, rege
 2. Keep `Postino.sum[A].variant(...).build` as the explicit path for `#[repr(u8)]`, serde tags, or non-contiguous discriminants. Document when to use which.
 3. Add a fixture pair: a Rust enum with three variants on the Rust side, decoded by a Scala sealed trait using `derives Codec`.
 
-**Exit:** `derives Codec` works for sealed traits / enums in the simple case; `AGENTS.md` updated to reflect the new default.
+**Exit:** `derives Codec` works for sealed trait hierarchies in the simple case; `AGENTS.md` updated to reflect the new default.
 
 ---
 

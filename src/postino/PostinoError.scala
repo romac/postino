@@ -42,6 +42,9 @@ object PostinoError:
   final case class InvalidChar(value: BigInt) extends PostinoError:
     def message = s"invalid Unicode scalar value $value for Scala Char"
 
+  final case class InvalidCharLength(codePoints: Int) extends PostinoError:
+    def message = s"Rust char decoded to $codePoints Unicode scalar value(s)"
+
   final case class TrailingBytes(count: Int, offset: Int) extends PostinoError:
     def message = s"$count trailing byte(s) starting at offset $offset"
 

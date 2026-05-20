@@ -76,17 +76,13 @@ private[postino] object PrimitiveCodecs:
                   .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
                   .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
               try
-                val value = decoder.decode(java.nio.ByteBuffer.wrap(bytes)).toString
-                if value.codePointCount(0, value.length) != 1 then
-                  Left(PostinoError.InvalidChar(BigInt(-1)))
+                val value      = decoder.decode(java.nio.ByteBuffer.wrap(bytes)).toString
+                val codePoints = value.codePointCount(0, value.length)
+                if codePoints != 1 then Left(PostinoError.InvalidCharLength(codePoints))
                 else
                   val scalar = value.codePointAt(0)
                   if scalar > Char.MaxValue then Left(PostinoError.InvalidChar(BigInt(scalar)))
-                  else
-                    val char = scalar.toChar
-                    if java.lang.Character.isSurrogate(char) then
-                      Left(PostinoError.InvalidChar(BigInt(char.toInt)))
-                    else Right(char)
+                  else Right(scalar.toChar)
               catch case NonFatal(error) => Left(PostinoError.InvalidUtf8(error.getMessage))
 
   given Codec[Byte] with

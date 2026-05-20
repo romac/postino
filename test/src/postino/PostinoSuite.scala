@@ -81,6 +81,11 @@ final class PostinoSuite extends FunSuite:
 
   test("char codec rejects values Scala Char cannot represent as Rust char"):
     assertEquals(Postino.encode(0xd800.toChar), Left(PostinoError.InvalidChar(BigInt(0xd800))))
+    assertEquals(Postino.decode[Char](bytes(0x00)), Left(PostinoError.InvalidCharLength(0)))
+    assertEquals(
+      Postino.decode[Char](bytes(0x02, 0x61, 0x62)),
+      Left(PostinoError.InvalidCharLength(2))
+    )
     assertEquals(
       Postino.decode[Char](bytes(0x04, 0xf0, 0x9f, 0x98, 0x80)),
       Left(PostinoError.InvalidChar(BigInt(0x1f600)))
