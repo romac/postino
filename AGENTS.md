@@ -13,6 +13,7 @@ The build tool is **Mill** (not sbt). A launcher script lives at `./mill`. Alway
 - Run only core tests: `./mill --no-server test`
 - Run only scodec adapter tests: `./mill --no-server postinoScodec.test`
 - Run only Circe adapter tests: `./mill --no-server postinoCirce.test`
+- Run only FS2 adapter tests: `./mill --no-server postinoFs2.test`
 - Run a single test by name (MUnit): `./mill --no-server test.testOnly -- '*<substring>*'`
 - Format Scala sources: `./mill --no-server fmt`
 - Regenerate Rust fixtures and diff against `interop/fixtures/postcard-1.1.3.hex`: `./mill --no-server interopTest` (requires a working `cargo`)
@@ -21,11 +22,12 @@ Normal test runs read the checked-in hex fixture file, so they stay offline. `in
 
 ## Module Layout
 
-Three Mill modules in `build.mill`:
+Four Mill modules in `build.mill`:
 
 - root (`.`) — the core library. Sources in `src/postino/`, tests in `test/src/postino/`. No third-party deps beyond MUnit (test-only).
 - `postinoScodec` — optional adapter that wraps a `postino.Codec[A]` as a `scodec.Codec[A]`. Sources in `postino-scodec/src/`, tests in `postino-scodec/test/src/`. Depends on the core module and `org.scodec::scodec-core`.
 - `postinoCirce` — optional adapter that derives an `io.circe.Codec[A]` for Postino schemas. Sources in `postino-circe/src/`, tests in `postino-circe/test/src/`. Depends on the core module and `io.circe::circe-core`.
+- `postinoFs2` — optional adapter that exposes COBS-framed FS2 pipes. Sources in `postino-fs2/src/`, tests in `postino-fs2/test/src/`. Depends on the core module and `co.fs2::fs2-core`.
 
 Keep the core dependency-light. New ecosystem integrations belong in their own Mill submodule, not in core.
 
@@ -43,6 +45,7 @@ The encode/decode pipeline is intentionally small and `Either`-based — there a
 - `Codec[A] = Encoder[A] with Decoder[A]`. `Codec.derived` works for product types via Scala 3 `Mirror.ProductOf` (constructor fields in order, no field names, no length prefix — matches Rust struct layout).
 - `Codec.derived` also works for sealed traits/enums in the declaration-order case: `Mirror.SumOf` children are assigned `u32` discriminants `0..n-1`. Use `Postino.sum[A].variant(discriminant, codec).build` for `#[repr]`, serde tags, sparse discriminants, or any schema where Scala declaration order does not exactly match Rust.
 - The Circe adapter (`PostinoCirce.toCirce`) is schema-driven rather than wire-format-derived: products use mirror field names, sums use `{ "tag": "...", "value": ... }`, and maps use ordered key/value entry arrays.
+- The FS2 adapter (`PostinoFs2.encodeCobs` / `PostinoFs2.decodeCobs`) works on COBS-framed streams first; raw postcard payloads remain finite-message APIs because they are not self-delimiting.
 - `Varint.scala` implements postcard's LEB128-with-cap varints; signed integers (`i16`/`i32`/`i64`/`i128`) go through zigzag in `PrimitiveCodecs`. Unsigned types are exposed as `U16` / `U32` / `U64` / `U128` value classes in `Unsigned.scala` because Scala has no native unsigned ints — use these whenever modeling Rust `u16`/`u32`/`u64`/`u128`.
 - `PostinoError` is a closed sealed trait of structured errors. Add a new case there (with a `message`) rather than threading strings.
 - The scodec adapter (`PostinoScodec.toScodec`) requires byte-aligned input and reports `SizeBound.unknown` because postcard is variable-length.

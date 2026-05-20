@@ -50,6 +50,10 @@ schema-driven JSON projection from the same Scala mirror shape: products are JSO
 objects with field names, sums use `{ "tag": "...", "value": ... }`, and maps use
 ordered key/value entry arrays.
 
+The optional FS2 adapter is also outside the postcard wire format. It exposes
+COBS-framed encode/decode pipes over `fs2.Stream`, raising `PostinoFs2Exception`
+for structured `PostinoError` values.
+
 Streaming decode for raw postcard payloads expects a finite source and checks for
 trailing bytes at the end. Raw postcard is not self-delimiting on an endless byte
 stream, so long-lived links should use an explicit framing layer such as COBS.
@@ -58,7 +62,6 @@ Deferred:
 
 - Serde attributes
 - schema evolution
-- FS2 integration
 
 ## Verification
 

@@ -26,12 +26,19 @@ Optional Circe adapter:
 ivy"me.romac::postino-circe:0.1.0-M1"
 ```
 
+Optional FS2 adapter:
+
+```scala
+ivy"me.romac::postino-fs2:0.1.0-M1"
+```
+
 For sbt:
 
 ```scala
 libraryDependencies += "me.romac" %% "postino" % "0.1.0-M1"
 libraryDependencies += "me.romac" %% "postino-scodec" % "0.1.0-M1"
 libraryDependencies += "me.romac" %% "postino-circe" % "0.1.0-M1"
+libraryDependencies += "me.romac" %% "postino-fs2" % "0.1.0-M1"
 ```
 
 ## Basic Usage
@@ -274,11 +281,40 @@ Products encode as JSON objects using Scala mirror field names. Sums encode as t
 
 Maps encode as ordered arrays of `{ "key": ..., "value": ... }` entries so non-string keys and wire-order-sensitive maps stay representable.
 
+## FS2 Adapter
+
+The optional FS2 module provides COBS-framed pipes for byte streams. Each input value becomes one postcard COBS frame, and decoding waits for the `0x00` frame terminator before handing the frame to `Postino.decodeCobs`.
+
+```scala
+import fs2.{Fallible, Stream}
+import postino.*
+import postino.fs2.PostinoFs2
+
+final case class Sensor(id: U16, temp: Int, label: String) derives Codec
+
+val sensor =
+  Sensor(U16.unsafeFromInt(0x1234), -21, "lab")
+
+val framed: Either[Throwable, List[Byte]] =
+  Stream
+    .emit(sensor)
+    .through(PostinoFs2.encodeCobs[Fallible, Sensor])
+    .toList
+```
+
+Use the same pipe shape to decode framed bytes:
+
+```scala
+val decoded: fs2.Pipe[fs2.Fallible, Byte, Sensor] =
+  PostinoFs2.decodeCobs[Fallible, Sensor]
+```
+
+The pipes require an FS2 effect that can raise `Throwable`, such as `cats.effect.IO` or `fs2.Fallible`. Postino errors are raised as `PostinoFs2Exception`, preserving the structured `PostinoError` value.
+
 ## Limitations
 
 Postino v0 does not support:
 
-- FS2 integration
 - Serde attributes
 - schema evolution
 

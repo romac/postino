@@ -53,7 +53,9 @@ object `package` extends PostinoPublishModule with ScalafmtModule:
         filesToFormat(postinoScodec.sources()) ++
         filesToFormat(postinoScodec.test.sources()) ++
         filesToFormat(postinoCirce.sources()) ++
-        filesToFormat(postinoCirce.test.sources()),
+        filesToFormat(postinoCirce.test.sources()) ++
+        filesToFormat(postinoFs2.sources()) ++
+        filesToFormat(postinoFs2.test.sources()),
       scalafmtConfig().head,
     )
 
@@ -123,6 +125,26 @@ object `package` extends PostinoPublishModule with ScalafmtModule:
 
     object test extends ScalaTests with TestModule.Munit:
       override def sources = Task.Sources(BuildCtx.workspaceRoot / "postino-scodec/test/src")
+
+      override def mvnDeps = Seq(
+        mvn"org.scalameta::munit:1.2.1",
+      )
+
+  object postinoFs2 extends PostinoPublishModule:
+    override def artifactName = "postino-fs2"
+    override def scalaVersion = outer.scalaVersion()
+    override def scalacOptions = outer.scalacOptions()
+    override def publishVersion = outer.publishVersion()
+    override def postinoGroupId = outer.postinoGroupId()
+    override def sources = Task.Sources(BuildCtx.workspaceRoot / "postino-fs2/src")
+    override def moduleDeps = Seq(outer)
+
+    override def mvnDeps = Seq(
+      mvn"co.fs2::fs2-core:3.13.0",
+    )
+
+    object test extends ScalaTests with TestModule.Munit:
+      override def sources = Task.Sources(BuildCtx.workspaceRoot / "postino-fs2/test/src")
 
       override def mvnDeps = Seq(
         mvn"org.scalameta::munit:1.2.1",
