@@ -259,6 +259,11 @@ final class PostinoSuite extends FunSuite:
     )
     assertEquals(Postino.decodeCrc[Sensor](fixtureBytes("sensor_crc32")), Right(sensor))
 
+  test("CRC-32C implementation matches the standard check value"):
+    val input = "123456789".getBytes(java.nio.charset.StandardCharsets.US_ASCII)
+
+    assertEquals(unsigned(Crc.Crc32Iscsi.checksum(input)), Vector(0x83, 0x92, 0x06, 0xe3))
+
   test("CRC decode rejects short and mismatched checksums"):
     assertEquals(
       Postino.decodeCrc[Boolean](bytes(0x01, 0x02, 0x03)),
