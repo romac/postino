@@ -7,10 +7,10 @@ import scala.deriving.Mirror
 import scala.reflect.ClassTag
 import scala.util.control.NonFatal
 
-trait Encoder[A]:
+trait Encoder[-A]:
   def encode(value: A, out: Writer): Either[PostinoError, Unit]
 
-trait Decoder[A]:
+trait Decoder[+A]:
   def decode(in: Reader): Either[PostinoError, A]
 
 trait Codec[A] extends Encoder[A] with Decoder[A]
