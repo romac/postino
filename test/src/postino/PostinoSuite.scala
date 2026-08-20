@@ -4,6 +4,7 @@ import munit.FunSuite
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, IOException, InputStream, OutputStream}
 import scala.collection.immutable.{ListMap, SortedMap, SortedSet}
+import scala.compiletime.testing.typeCheckErrors
 import scala.io.Source as ScalaSource
 
 final class PostinoSuite extends FunSuite:
@@ -53,6 +54,18 @@ final class PostinoSuite extends FunSuite:
     case Empty
     case SensorValue(sensor: Sensor)
 
+  sealed trait Tree
+  final case class Leaf(value: Int)             extends Tree
+  final case class Branch(children: List[Tree]) extends Tree
+
+  sealed trait First
+  final case class FirstEnd(value: Int)    extends First
+  final case class FirstNext(next: Second) extends First
+
+  sealed trait Second
+  final case class SecondEnd(value: Int)   extends Second
+  final case class SecondNext(next: First) extends Second
+
   given Codec[Message] =
     Postino
       .sum[Message]
@@ -66,6 +79,10 @@ final class PostinoSuite extends FunSuite:
       .sum[WideMessage]
       .variant(128, Codec[HighDiscriminant])
       .build
+
+  given Codec[Tree]   = Codec.defer(Codec.derived[Tree])
+  given Codec[First]  = Codec.defer(Codec.derived[First])
+  given Codec[Second] = Codec.defer(Codec.derived[Second])
 
   test("fixture corpus is language-neutral and pinned to postcard 1.1.3"):
     assertEquals(rustFixtureCorpus.metadata("postcard-test-vectors-version"), "1")
@@ -531,6 +548,61 @@ final class PostinoSuite extends FunSuite:
       ,
       Right(Vector(9, 8, 7))
     )
+
+  test("exhaustive sums encode and decode after every direct variant is registered"):
+    val codec =
+      Postino
+        .exhaustiveSum[Message]
+        .variant(0, Codec[Ping])
+        .variant(1, Codec[Pong])
+        .variant(2, Codec[Data])
+        .build
+
+    assertEquals(
+      Postino.encode[Message](Pong(U16.unsafeFromInt(0xabcd)))(using codec).map(unsigned),
+      Right(fixture("enum_pong"))
+    )
+    assertEquals(
+      Postino.decode[Message](fixtureBytes("enum_ping"))(using codec),
+      Right(Ping())
+    )
+
+    val duplicateDiscriminant =
+      Postino
+        .exhaustiveSum[Message]
+        .variant(0, Codec[Ping])
+        .variant(0, Codec[Pong])
+        .variant(2, Codec[Data])
+    val error = intercept[IllegalArgumentException](duplicateDiscriminant.build)
+    assertEquals(error.getMessage, "duplicate Postino enum discriminant 0")
+
+  test("exhaustive sums reject missing and repeated variant types at compile time"):
+    val missing = typeCheckErrors("""
+      import postino.*
+      sealed trait Example
+      final case class One() extends Example derives Codec
+      final case class Two() extends Example derives Codec
+      Postino.exhaustiveSum[Example].variant(0, Codec[One]).build
+    """)
+    val repeated = typeCheckErrors("""
+      import postino.*
+      sealed trait Example
+      final case class One() extends Example derives Codec
+      final case class Two() extends Example derives Codec
+      Postino.exhaustiveSum[Example]
+        .variant(0, Codec[One])
+        .variant(1, Codec[One])
+    """)
+
+    assert(missing.nonEmpty)
+    assert(repeated.nonEmpty)
+
+  test("deferred codecs support direct and mutual recursion"):
+    val tree: Tree   = Branch(List(Leaf(1), Branch(List(Leaf(2)))))
+    val first: First = FirstNext(SecondNext(FirstNext(SecondEnd(3))))
+
+    assertEquals(Postino.encode(tree).flatMap(Postino.decode[Tree]), Right(tree))
+    assertEquals(Postino.encode(first).flatMap(Postino.decode[First]), Right(first))
 
   test("Scala enums derive declaration-order sum codecs"):
     assertFixtureRoundTrip[DerivedMessage]("derived_enum_ping", DerivedMessage.Ping)

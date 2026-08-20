@@ -31,6 +31,16 @@ object Codec extends LowPriorityCodecs:
   def apply[A](using codec: Codec[A]): Codec[A] =
     codec
 
+  def defer[A](codec: => Codec[A]): Codec[A] =
+    new Codec[A]:
+      private lazy val delegate = codec
+
+      def encode(value: A, out: Writer): Either[PostinoError, Unit] =
+        delegate.encode(value, out)
+
+      def decode(in: Reader): Either[PostinoError, A] =
+        delegate.decode(in)
+
   inline def derived[A](using mirror: Mirror.Of[A]): Codec[A] =
     inline mirror match
       case product: Mirror.ProductOf[A] => ProductCodecs.derivedProduct[A](product)

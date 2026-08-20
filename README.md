@@ -176,6 +176,18 @@ Encoding writes a `u32` varint discriminant followed by the selected variant pay
 
 Duplicate discriminants fail when `.build` is called. If more than one registered runtime class matches a value during encoding, encoding fails with `PostinoError.AmbiguousVariant`.
 
+Use `Postino.exhaustiveSum[A]` when `A` has a Scala `Mirror.SumOf` and every direct variant must be registered explicitly. Its `.build` method is available only after every direct subtype has been registered exactly once. The existing `Postino.sum[A]` remains available for hierarchies that cannot use mirror-based exhaustiveness.
+
+Recursive schemas can defer codec initialization until first use:
+
+```scala
+sealed trait Tree
+final case class Leaf(value: Int) extends Tree
+final case class Branch(children: List[Tree]) extends Tree
+
+given Codec[Tree] = Codec.defer(Codec.derived[Tree])
+```
+
 ## Supported Types
 
 The core module includes bidirectional codecs for:

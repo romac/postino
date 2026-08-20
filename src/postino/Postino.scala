@@ -1,6 +1,7 @@
 package postino
 
 import java.io.{InputStream, OutputStream}
+import scala.deriving.Mirror
 
 object Postino:
   def encode[A](value: A)(using encoder: Encoder[A]): Either[PostinoError, Array[Byte]] =
@@ -96,6 +97,11 @@ object Postino:
 
   def sum[A]: SumCodecBuilder[A] =
     SumCodecBuilder.empty[A]
+
+  def exhaustiveSum[A](using
+      mirror: Mirror.SumOf[A]
+  ): ExhaustiveSumCodecBuilder[A, mirror.MirroredElemTypes] =
+    ExhaustiveSumCodecBuilder.empty[A, mirror.MirroredElemTypes]
 
   private def appendCrc(payload: Array[Byte], crc: Crc): Array[Byte] =
     payload ++ crc.checksum(payload)

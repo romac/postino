@@ -21,6 +21,15 @@
 - Decode: looks up the decoded `u32` discriminant in the precomputed map.
 - Duplicate-discriminant check is at runtime in `.build` (throws `IllegalArgumentException`).
 
+**Exhaustive sums** (`ExhaustiveSumCodecBuilder`):
+- `Postino.exhaustiveSum[A]` starts with `Mirror.SumOf[A]#MirroredElemTypes` as its type-level set of unregistered variants.
+- Each `.variant` removes exactly one direct subtype. Repeated or unrelated variant types fail implicit search at compile time.
+- `.build` requires evidence that no variants remain. Numeric discriminants are still validated by the shared runtime builder.
+
+**Recursive codecs** (`Codec.defer`):
+- The wrapper initializes its by-name codec once, on first encode or decode.
+- Named givens can therefore defer `Codec.derived` while direct or mutually recursive references are being initialized.
+
 ## How borer differs
 
 Borer is fully macro-based (`scala.quoted.*`), and that gives it qualitatively different output:
@@ -41,7 +50,7 @@ Borer is fully macro-based (`scala.quoted.*`), and that gives it qualitatively d
 
 **Worth considering:**
 
-- **Mirror-aware explicit sum builder for exhaustiveness.** Keep the explicit-discriminant path for custom discriminants, but add a `Postino.sum[A].variants((0, summon[Codec[Ping]]), (1, summon[Codec[Pong]]), ...).build` form that uses `Mirror.SumOf[A]#MirroredElemTypes` to verify at compile time that every subtype was registered exactly once. This catches "forgot to add a variant" without inferring discriminants.
+- More precise product-field compile errors that include the field name as well as its type.
 
 **Probably not worth it for v0:**
 
