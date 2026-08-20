@@ -50,6 +50,13 @@ object Postino:
       .flatMap: value =>
         in.finish().map(_ => value)
 
+  private[postino] def decodePrefix[A](
+      bytes: Array[Byte],
+      decodeOptions: DecodeOptions
+  )(using decoder: Decoder[A]): Either[PostinoError, (A, Int)] =
+    val in = Reader.from(bytes, decodeOptions)
+    decoder.decode(in).map(value => value -> in.position)
+
   def encodeCobs[A](value: A)(using encoder: Encoder[A]): Either[PostinoError, Array[Byte]] =
     encode(value).flatMap(Cobs.encode)
 
@@ -113,7 +120,10 @@ object Postino:
   )(using decoder: Decoder[A]): Either[PostinoError, A] =
     splitCrc(bytes, crc).flatMap(decode(_, decodeOptions))
 
-  private def splitCrc(bytes: Array[Byte], crc: Crc): Either[PostinoError, Array[Byte]] =
+  private[postino] def splitCrc(
+      bytes: Array[Byte],
+      crc: Crc
+  ): Either[PostinoError, Array[Byte]] =
     val checksumLength = crc.widthBytes
     if bytes.length < checksumLength then
       Left(PostinoError.CrcPayloadTooShort(bytes.length, checksumLength))

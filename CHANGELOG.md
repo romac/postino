@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Add postcard-compatible fixed arrays, tuples, Rust `Result` through Scala `Either`, and ordered sets through `SortedSet`.
 - Derive declaration-order codecs directly for ordinary Scala 3 enums.
 - Add compile-time exhaustive explicit sums and deferred codecs for recursive schemas.
+- Add trailing-CRC encode and decode streams to the FS2 adapter.
 
 ## [0.1.0-M2] - 2026-08-20
 

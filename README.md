@@ -323,7 +323,7 @@ Options encode as JSON `null` for `None` and as the inner JSON value for `Some`.
 
 ## FS2 Adapter
 
-The optional FS2 module provides COBS-framed pipes for byte streams. Each input value becomes one postcard COBS frame, and decoding waits for the `0x00` frame terminator before handing the frame to `Postino.decodeCobs`.
+The optional FS2 module provides COBS- and CRC-framed pipes for byte streams. Each input value becomes one postcard-compatible frame.
 
 ```scala
 import fs2.{Fallible, Stream}
@@ -349,7 +349,9 @@ val decoded: fs2.Pipe[fs2.Fallible, Byte, Sensor] =
   PostinoFs2.decodeCobs[Fallible, Sensor]
 ```
 
-The pipes require an FS2 effect that can raise `Throwable`, such as `cats.effect.IO` or `fs2.Fallible`. Postino errors are raised as `PostinoFs2Exception`, preserving the structured `PostinoError` value. `PostinoFs2.decodeCobs` buffers one frame at a time and rejects frames larger than `DecodeOptions.maxByteLength`.
+Use `PostinoFs2.encodeCrc` and `PostinoFs2.decodeCrc` for postcard's trailing-CRC flavor. The CRC decoder uses the known `Decoder[A]` to locate each payload boundary, then consumes and verifies its checksum. Default and explicit `Crc` overloads match the core API.
+
+The pipes require an FS2 effect that can raise `Throwable`, such as `cats.effect.IO` or `fs2.Fallible`. Postino errors are raised as `PostinoFs2Exception`, preserving the structured `PostinoError` value. Both decoders buffer one frame at a time and reject frames larger than `DecodeOptions.maxByteLength`. CRC framing has no delimiter, so malformed payloads, checksum mismatches, and truncation terminate the pipe without resynchronization.
 
 ## Limitations
 

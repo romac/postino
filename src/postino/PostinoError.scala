@@ -67,6 +67,12 @@ object PostinoError:
     def message =
       s"CRC payload has $length byte(s), but checksum requires $checksumLength byte(s)"
 
+  final case class CrcFraming(reason: String) extends PostinoError:
+    def message = s"invalid CRC frame: $reason"
+
+  final case class CrcFrameTooLarge(length: Int, max: Int) extends PostinoError:
+    def message = s"CRC frame length $length exceeds configured maximum $max"
+
   final case class CrcMismatch(expected: Vector[Int], actual: Vector[Int]) extends PostinoError:
     def message = s"CRC mismatch: expected ${hex(expected)}, got ${hex(actual)}"
 

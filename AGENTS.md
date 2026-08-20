@@ -27,7 +27,7 @@ Four Mill modules in `build.mill`:
 - root (`.`) — the core library. Sources in `src/postino/`, tests in `test/src/postino/`. No third-party deps beyond MUnit (test-only).
 - `postinoScodec` — optional adapter that wraps a `postino.Codec[A]` as a `scodec.Codec[A]`. Sources in `postino-scodec/src/`, tests in `postino-scodec/test/src/`. Depends on the core module and `org.scodec::scodec-core`.
 - `postinoCirce` — optional adapter that derives an `io.circe.Codec[A]` for Postino schemas. Sources in `postino-circe/src/`, tests in `postino-circe/test/src/`. Depends on the core module and `io.circe::circe-core`.
-- `postinoFs2` — optional adapter that exposes COBS-framed FS2 pipes. Sources in `postino-fs2/src/`, tests in `postino-fs2/test/src/`. Depends on the core module and `co.fs2::fs2-core`.
+- `postinoFs2` — optional adapter that exposes COBS- and CRC-framed FS2 pipes. Sources in `postino-fs2/src/`, tests in `postino-fs2/test/src/`. Depends on the core module and `co.fs2::fs2-core`.
 
 Keep the core dependency-light. New ecosystem integrations belong in their own Mill submodule, not in core.
 
@@ -46,7 +46,7 @@ The encode/decode pipeline is intentionally small and `Either`-based — there a
 - `Codec.derived` also works for sealed trait hierarchies and Scala 3 enums in the declaration-order case: `Mirror.SumOf` children are assigned `u32` discriminants `0..n-1`. Existing child codecs take precedence, and product-shaped variants are otherwise derived automatically. Use `Postino.sum[A].variant(discriminant, codec).build` for `#[repr]`, serde tags, sparse discriminants, or any schema where Scala declaration order does not exactly match Rust.
 - `Postino.exhaustiveSum[A]` is the mirror-aware explicit builder: its type state requires every direct subtype exactly once before `.build` is available. `Codec.defer` lazily initializes direct or mutually recursive codecs.
 - The Circe adapter (`PostinoCirce.toCirce`) is schema-driven rather than wire-format-derived: products use mirror field names, sums use `{ "tag": "...", "value": ... }`, and maps use ordered key/value entry arrays.
-- The FS2 adapter (`PostinoFs2.encodeCobs` / `PostinoFs2.decodeCobs`) works on COBS-framed streams first; raw postcard payloads remain finite-message APIs because they are not self-delimiting.
+- The FS2 adapter provides COBS and trailing-CRC byte pipes. CRC decoding uses the known schema to locate the checksum, but any failure is terminal because CRC has no resynchronization delimiter. Raw postcard payloads remain finite-message APIs.
 - `Varint.scala` implements postcard's LEB128-with-cap varints; signed integers (`i16`/`i32`/`i64`/`i128`) go through zigzag in `PrimitiveCodecs`. Unsigned types are exposed as `U16` / `U32` / `U64` / `U128` value classes in `Unsigned.scala` because Scala has no native unsigned ints — use these whenever modeling Rust `u16`/`u32`/`u64`/`u128`.
 - `PostinoError` is a closed sealed trait of structured errors. Add a new case there (with a `message`) rather than threading strings.
 - The scodec adapter (`PostinoScodec.toScodec`) requires byte-aligned input and reports `SizeBound.unknown` because postcard is variable-length.

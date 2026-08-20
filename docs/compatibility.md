@@ -63,9 +63,12 @@ ordered key/value entry arrays. Options use JSON `null` for `None`, so nested
 options are not lossless in the JSON projection.
 
 The optional FS2 adapter is also outside the postcard wire format. It exposes
-COBS-framed encode/decode pipes over `fs2.Stream`, raising `PostinoFs2Exception`
-for structured `PostinoError` values. Its COBS decoder buffers one frame at a
-time and rejects frames larger than `DecodeOptions.maxByteLength`.
+COBS- and CRC-framed encode/decode pipes over `fs2.Stream`, raising
+`PostinoFs2Exception` for structured `PostinoError` values. Both decoders buffer
+one frame at a time and reject frames larger than `DecodeOptions.maxByteLength`.
+The CRC decoder uses the known schema to locate the checksum trailer. CRC has no
+delimiter for resynchronization, so a malformed payload, checksum mismatch, or
+truncated frame terminates the pipe.
 
 Streaming decode for raw postcard payloads expects a finite source and checks for
 trailing bytes at the end. Raw postcard is not self-delimiting on an endless byte
