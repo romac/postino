@@ -9,10 +9,10 @@
 - Runtime decode writes each decoded value into a pre-sized `Array[Any]`, then calls `mirror.fromProduct(Tuple.fromArray(values))`.
 
 **Derived sums** (`Codec.derived` / `derives Codec`):
-- `Mirror.SumOf` children are walked in declaration order, and each child must have its own `Codec`.
+- `Mirror.SumOf` children are walked in declaration order. An existing child `Codec` takes precedence; otherwise product-shaped variants are derived automatically.
 - Runtime encode uses `mirror.ordinal(value)` as the `u32` discriminant, then delegates to the child codec at that ordinal.
 - Runtime decode reads a `u32` discriminant and indexes into the same declaration-order child codec table.
-- This path is only for sealed trait hierarchies where Scala declaration order exactly matches Rust enum declaration order. Plain Scala 3 `enum` cases are not auto-derived unless the user supplies child codecs explicitly.
+- This path supports sealed trait hierarchies and ordinary Scala 3 enums when Scala declaration order exactly matches Rust enum declaration order.
 
 **Sums** (`SumCodecBuilder`):
 - Manual fluent builder. Each `.variant(disc, Codec[B])` appends `(discriminant, codec, ClassTag[B])` to a `Vector`.

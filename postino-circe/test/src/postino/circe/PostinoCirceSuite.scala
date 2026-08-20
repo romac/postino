@@ -20,6 +20,10 @@ final class PostinoCirceSuite extends FunSuite:
   final case class Ping()        extends Message derives Codec
   final case class Pong(id: U16) extends Message derives Codec
 
+  enum Event derives Codec:
+    case Idle
+    case Reading(value: Int)
+
   test("toCirce encodes and decodes products with mirror field names"):
     val codec  = PostinoCirce.toCirce[Sensor]
     val sensor = Sensor(U16.unsafeFromInt(0x1234), -21, "lab")
@@ -94,6 +98,18 @@ final class PostinoCirceSuite extends FunSuite:
 
     assertEquals(codec(Pong(U16.unsafeFromInt(0xabcd))), json)
     assertEquals(codec.decodeJson(json), Right(Pong(U16.unsafeFromInt(0xabcd))))
+
+  test("toCirce encodes and decodes directly derived Scala enums"):
+    val codec = PostinoCirce.toCirce[Event]
+    val json = Json.obj(
+      "tag" -> Json.fromString("Reading"),
+      "value" -> Json.obj(
+        "value" -> Json.fromInt(42)
+      )
+    )
+
+    assertEquals(codec(Event.Reading(42)), json)
+    assertEquals(codec.decodeJson(json), Right(Event.Reading(42)))
 
   test("toCirce rejects unknown sum tags"):
     val codec = PostinoCirce.toCirce[Message]

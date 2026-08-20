@@ -1,5 +1,6 @@
 package postino
 
+import scala.deriving.Mirror
 import scala.quoted.*
 
 private[postino] object Macros:
@@ -18,7 +19,10 @@ private[postino] object Macros:
     Expr.summon[Codec[A]] match
       case Some(codec) => codec
       case None =>
-        report.errorAndAbort(
-          s"Postino.derived: missing given Codec[${Type.show[A]}] for a sum variant. " +
-            s"Provide a Codec for that variant, or add `derives Codec` to its case class."
-        )
+        Expr.summon[Mirror.ProductOf[A]] match
+          case Some(mirror) => '{ ProductCodecs.derivedProduct[A]($mirror) }
+          case None =>
+            report.errorAndAbort(
+              s"Postino.derived: missing given Codec[${Type.show[A]}] for a sum variant. " +
+                s"Provide a Codec for that variant, or make it a product type."
+            )

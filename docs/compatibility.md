@@ -43,8 +43,8 @@ Scala `Array[A]`, `List[A]`, and `Vector[A]` map to length-prefixed Rust sequenc
 their iteration order does not define stable wire bytes.
 
 Derived sum codecs assign discriminants in Scala declaration order (`0..n-1`)
-for sealed trait hierarchies where every child subtype has its own `Codec`.
-Scala 3 `enum` cases are not auto-derived today.
+for sealed trait hierarchies and Scala 3 enums. Existing child codecs are used
+when present; product-shaped variants without a codec are derived automatically.
 Use `Postino.sum[A].variant(...).build` when the Rust enum uses custom, sparse, or
 non-declaration-order discriminants.
 

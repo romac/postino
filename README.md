@@ -136,7 +136,7 @@ Derived product decoders catch constructor failures, such as `require(...)`, and
 
 ## Sums
 
-Sealed trait hierarchies can derive codecs when every concrete subtype has its own `Codec` and Scala declaration order matches Rust enum declaration order.
+Sealed trait hierarchies and Scala 3 enums can derive codecs when Scala declaration order matches Rust enum declaration order. Existing child codecs are used when present; product-shaped cases without a codec are derived automatically.
 
 ```scala
 import postino.*
@@ -149,7 +149,13 @@ final case class Data(bytes: Array[Byte]) extends Message derives Codec
 
 Derived sum codecs assign `u32` discriminants in declaration order: `0` for `Ping`, `1` for `Pong`, `2` for `Data`.
 
-Scala 3 `enum` cases are not auto-derived today because each derived sum child must have its own `Codec`. Model the schema as a sealed trait hierarchy like the example above, or use `Postino.sum` with explicitly supplied variant codecs.
+Ordinary Scala 3 enums use the same declaration-order encoding:
+
+```scala
+enum Command derives Codec:
+  case Ping
+  case Pong(id: U16)
+```
 
 Use the explicit builder when the Rust schema uses custom, sparse, or non-declaration-order discriminants.
 
@@ -198,7 +204,7 @@ The core module includes bidirectional codecs for:
 - `SortedMap[K, V]`
 - `SortedSet[A]`
 - case class products via `derives Codec`
-- declaration-order sealed trait hierarchies via `derives Codec` when every subtype has a `Codec`
+- declaration-order sealed trait hierarchies and Scala 3 enums via `derives Codec`
 - explicit ADTs via `Postino.sum`
 
 Scala has no native unsigned integer types matching Rust `u16`, `u32`, `u64`, and `u128`, so Postino exposes wrappers:

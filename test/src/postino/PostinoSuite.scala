@@ -44,10 +44,14 @@ final class PostinoSuite extends FunSuite:
   sealed trait WideMessage
   final case class HighDiscriminant() extends WideMessage derives Codec
 
-  sealed trait DerivedMessage derives Codec
-  final case class DerivedPing()                   extends DerivedMessage derives Codec
-  final case class DerivedPong(id: U16)            extends DerivedMessage derives Codec
-  final case class DerivedData(bytes: Array[Byte]) extends DerivedMessage derives Codec
+  enum DerivedMessage derives Codec:
+    case Ping
+    case Pong(id: U16)
+    case Data(bytes: Array[Byte])
+
+  enum NestedMessage derives Codec:
+    case Empty
+    case SensorValue(sensor: Sensor)
 
   given Codec[Message] =
     Postino
@@ -528,23 +532,29 @@ final class PostinoSuite extends FunSuite:
       Right(Vector(9, 8, 7))
     )
 
-  test("derived sums encode and decode declaration-order discriminants"):
-    assertFixtureRoundTrip[DerivedMessage]("derived_enum_ping", DerivedPing())
+  test("Scala enums derive declaration-order sum codecs"):
+    assertFixtureRoundTrip[DerivedMessage]("derived_enum_ping", DerivedMessage.Ping)
     assertFixtureRoundTrip[DerivedMessage](
       "derived_enum_pong",
-      DerivedPong(U16.unsafeFromInt(0xabcd))
+      DerivedMessage.Pong(U16.unsafeFromInt(0xabcd))
     )
-    assertFixtureEncoded[DerivedMessage]("derived_enum_data", DerivedData(Array[Byte](9, 8, 7)))
+    assertFixtureEncoded[DerivedMessage](
+      "derived_enum_data",
+      DerivedMessage.Data(Array[Byte](9, 8, 7))
+    )
 
     assertEquals(
       Postino
         .decode[DerivedMessage](fixtureBytes("derived_enum_data"))
         .map:
-          case DerivedData(value) => unsigned(value)
-          case other              => fail(s"expected DerivedData, got $other")
+          case DerivedMessage.Data(value) => unsigned(value)
+          case other                      => fail(s"expected DerivedMessage.Data, got $other")
       ,
       Right(Vector(9, 8, 7))
     )
+
+    val nested = NestedMessage.SensorValue(Sensor(U16.unsafeFromInt(7), 42, "rack"))
+    assertEquals(Postino.encode(nested).flatMap(Postino.decode[NestedMessage]), Right(nested))
 
     assertEquals(
       Postino.decode[DerivedMessage](bytes(0x7f)),
