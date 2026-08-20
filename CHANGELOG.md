@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.0-M3] - 2026-08-20
+
 ### Added
 
 - Add postcard-compatible fixed arrays, tuples, Rust `Result` through Scala `Either`, and ordered sets through `SortedSet`.
@@ -45,6 +47,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Add Rust postcard 1.1.3 fixture compatibility tests.
 - Add the `postino-scodec` adapter.
 
-[Unreleased]: https://github.com/romac/postino/compare/0.1.0-M2...HEAD
+[Unreleased]: https://github.com/romac/postino/compare/0.1.0-M3...HEAD
+[0.1.0-M3]: https://github.com/romac/postino/compare/0.1.0-M2...0.1.0-M3
 [0.1.0-M2]: https://github.com/romac/postino/compare/0.1.0-M1...0.1.0-M2
 [0.1.0-M1]: https://github.com/romac/postino/releases/tag/0.1.0-M1

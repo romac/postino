@@ -11,34 +11,34 @@ The supported wire-format boundary is documented in [docs/compatibility.md](docs
 Core module:
 
 ```scala
-ivy"me.romac::postino:0.1.0-M2"
+ivy"me.romac::postino:0.1.0-M3"
 ```
 
 Optional scodec adapter:
 
 ```scala
-ivy"me.romac::postino-scodec:0.1.0-M2"
+ivy"me.romac::postino-scodec:0.1.0-M3"
 ```
 
 Optional Circe adapter:
 
 ```scala
-ivy"me.romac::postino-circe:0.1.0-M2"
+ivy"me.romac::postino-circe:0.1.0-M3"
 ```
 
 Optional FS2 adapter:
 
 ```scala
-ivy"me.romac::postino-fs2:0.1.0-M2"
+ivy"me.romac::postino-fs2:0.1.0-M3"
 ```
 
 For sbt:
 
 ```scala
-libraryDependencies += "me.romac" %% "postino" % "0.1.0-M2"
-libraryDependencies += "me.romac" %% "postino-scodec" % "0.1.0-M2"
-libraryDependencies += "me.romac" %% "postino-circe" % "0.1.0-M2"
-libraryDependencies += "me.romac" %% "postino-fs2" % "0.1.0-M2"
+libraryDependencies += "me.romac" %% "postino" % "0.1.0-M3"
+libraryDependencies += "me.romac" %% "postino-scodec" % "0.1.0-M3"
+libraryDependencies += "me.romac" %% "postino-circe" % "0.1.0-M3"
+libraryDependencies += "me.romac" %% "postino-fs2" % "0.1.0-M3"
 ```
 
 ## Basic Usage
