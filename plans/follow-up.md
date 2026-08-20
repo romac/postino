@@ -1,6 +1,6 @@
 # Postino Roadmap — Phased Plan
 
-Each phase ends with: Rust fixtures in `interop/rust-fixtures/src/main.rs`, regenerated `interop/fixtures/postcard-1.1.3.hex`, matching Scala tests, an updated `docs/compatibility.md`, and a README limitations-list edit.
+Each phase ends with: Rust fixtures in `interop/rust-fixtures/src/main.rs`, regenerated `interop/fixtures/postcard-1.1.3-vectors.tsv`, matching Scala tests, an updated `docs/compatibility.md`, and a README limitations-list edit.
 
 ---
 

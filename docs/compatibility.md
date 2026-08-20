@@ -69,12 +69,9 @@ Deferred:
 
 ## Verification
 
-Normal Scala tests load checked-in Rust postcard fixture bytes from
-`interop/fixtures/postcard-1.1.3.hex`, so `./mill --no-server test` stays fast
-and offline.
+Normal Scala tests load checked-in Rust postcard vectors from `interop/fixtures/postcard-1.1.3-vectors.tsv`, so `./mill --no-server test` stays fast and offline. The TSV corpus records each vector's schema, value, framing flavor, exact bytes, and source. It includes golden cases imported from the pinned postcard 1.1.3 source as well as Postino-specific coverage.
 
-Run `./mill --no-server interopTest` to regenerate the fixture stream with the
-Rust `postcard` crate and compare it against the checked-in fixture file.
+Run `./mill --no-server interopTest` to regenerate the vector corpus with the Rust `postcard` crate and compare it against the checked-in TSV file.
 
 Decoded Scala collection lengths and byte-blob lengths are subject to
 `DecodeOptions` safety limits. These limits do not change encoded wire bytes;

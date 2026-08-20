@@ -16,9 +16,9 @@ The build tool is **Mill** (not sbt). A launcher script lives at `./mill`. Alway
 - Run only FS2 adapter tests: `./mill --no-server postinoFs2.test`
 - Run a single test by name (MUnit): `./mill --no-server test.testOnly -- '*<substring>*'`
 - Format Scala sources: `./mill --no-server fmt`
-- Regenerate Rust fixtures and diff against `interop/fixtures/postcard-1.1.3.hex`: `./mill --no-server interopTest` (requires a working `cargo`)
+- Regenerate Rust vectors and diff against `interop/fixtures/postcard-1.1.3-vectors.tsv`: `./mill --no-server interopTest` (requires a working `cargo`)
 
-Normal test runs read the checked-in hex fixture file, so they stay offline. `interopTest` is the only task that shells out to Cargo.
+Normal test runs read the checked-in TSV vector corpus, so they stay offline. `interopTest` is the only task that shells out to Cargo.
 
 ## Module Layout
 
@@ -31,7 +31,7 @@ Four Mill modules in `build.mill`:
 
 Keep the core dependency-light. New ecosystem integrations belong in their own Mill submodule, not in core.
 
-`interop/rust-fixtures/` is a standalone Cargo project that prints hex fixtures to stdout; it is not part of the Scala build and should not gain Scala dependencies. The committed `interop/fixtures/postcard-1.1.3.hex` is the source of truth for tests.
+`interop/rust-fixtures/` is a standalone Cargo project that prints the language-neutral TSV vector corpus to stdout; it is not part of the Scala build and should not gain Scala dependencies. The committed `interop/fixtures/postcard-1.1.3-vectors.tsv` is the source of truth for tests.
 
 ## Architecture
 
@@ -55,4 +55,4 @@ The encode/decode pipeline is intentionally small and `Either`-based — there a
 - Scala 3.8.3, new syntax (`-new-syntax`), `-Wunused:imports` is on — keep imports clean.
 - Scalafmt config (`.scalafmt.conf`): `align.preset = more`, `maxColumn = 100`. Run `./mill --no-server fmt` before committing.
 - Files use `package postino` / `postino.scodec`, indented Scala 3 style, no braces.
-- Test fixtures live in `interop/fixtures/postcard-1.1.3.hex` and are loaded by name (e.g. `assertFixtureRoundTrip("i32_300", 300)`). When you add a new codec feature, add a Rust fixture in `interop/rust-fixtures/src/main.rs`, regenerate with `interopTest`, commit the updated hex file, and reference the fixture name in a Scala test.
+- Test vectors live in `interop/fixtures/postcard-1.1.3-vectors.tsv` and are loaded by name (e.g. `assertFixtureRoundTrip("i32_300", 300)`). When you add a new codec feature, add a Rust vector in `interop/rust-fixtures/src/main.rs`, regenerate with `interopTest`, commit the updated TSV file, and reference the vector name in a Scala test. Preserve the corpus format documented in `interop/fixtures/README.md`.

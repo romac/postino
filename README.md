@@ -220,6 +220,12 @@ Rust `char` values encode as a UTF-8 byte length followed by the scalar's bytes.
 
 Map codecs encode exactly the map value's iteration order. Use `SortedMap[K, V]` when you need stable key order compatible with Rust `BTreeMap`; Rust `HashMap` wire order is not stable.
 
+## Compatibility Vectors
+
+[`interop/fixtures/postcard-1.1.3-vectors.tsv`](interop/fixtures/postcard-1.1.3-vectors.tsv) is a language-neutral postcard 1.1.3 vector corpus. Each row records a name, framing flavor, schema, JSON value, exact wire bytes, and provenance. The corpus includes golden cases imported from postcard's pinned `postcard/v1.1.3` source plus Postino-specific vectors.
+
+Normal Scala tests consume the checked-in corpus without running Rust. Run `./mill --no-server interopTest` to regenerate every row with Rust postcard 1.1.3 and compare it with the committed file. See [`interop/fixtures/README.md`](interop/fixtures/README.md) for the file format and integration guidance.
+
 ## Decode Limits
 
 Collection and byte-blob decoders enforce configurable safety limits so small inputs cannot request unbounded decode work. The defaults allow at most 1,000,000 elements in one collection, 1,000,000 collection elements across a whole top-level decode, and 1,000,000 bytes in one `String` or `Array[Byte]`.

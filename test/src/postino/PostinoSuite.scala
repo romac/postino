@@ -16,6 +16,27 @@ final class PostinoSuite extends FunSuite:
       bytes: Array[Byte]
   ) derives Codec
 
+  final case class UpstreamBasic(st: U16, ei: Byte, sf: U64, tt: U32) derives Codec
+
+  sealed trait UpstreamBasicEnum derives Codec
+  final case class UpstreamBasicBib() extends UpstreamBasicEnum derives Codec
+  final case class UpstreamBasicBim() extends UpstreamBasicEnum derives Codec
+  final case class UpstreamBasicBap() extends UpstreamBasicEnum derives Codec
+
+  final case class UpstreamEnumStruct(eight: Byte, sixt: U16) derives Codec
+
+  sealed trait UpstreamDataEnum derives Codec
+  final case class UpstreamBib(value: U16)                extends UpstreamDataEnum derives Codec
+  final case class UpstreamBim(value: U64)                extends UpstreamDataEnum derives Codec
+  final case class UpstreamBap(value: Byte)               extends UpstreamDataEnum derives Codec
+  final case class UpstreamKim(value: UpstreamEnumStruct) extends UpstreamDataEnum derives Codec
+  final case class UpstreamChi(a: Byte, b: U32)           extends UpstreamDataEnum derives Codec
+  final case class UpstreamSho(first: U16, second: Byte)  extends UpstreamDataEnum derives Codec
+
+  final case class UpstreamTuple(first: Byte, second: U16) derives Codec
+  final case class UpstreamNewtype(value: U32) derives Codec
+  final case class UpstreamTupleStruct(value: UpstreamTuple) derives Codec
+
   sealed trait Message
   final case class Ping()                   extends Message derives Codec
   final case class Pong(id: U16)            extends Message derives Codec
@@ -42,6 +63,150 @@ final class PostinoSuite extends FunSuite:
       .sum[WideMessage]
       .variant(128, Codec[HighDiscriminant])
       .build
+
+  test("fixture corpus is language-neutral and pinned to postcard 1.1.3"):
+    assertEquals(rustFixtureCorpus.metadata("postcard-test-vectors-version"), "1")
+    assertEquals(rustFixtureCorpus.metadata("postcard-version"), "1.1.3")
+    assertEquals(rustFixtureCorpus.metadata("upstream-tag"), "postcard/v1.1.3")
+    assertEquals(
+      rustFixtureCorpus.metadata("upstream-commit"),
+      "718aa6a6850456017c19eeff67303c633f875736"
+    )
+    assertEquals(rustFixtures.size, 70)
+    assertEquals(
+      rustFixtures.values.map(_.flavor).toSet,
+      Set("raw", "cobs", "crc32-iso-hdlc", "crc32-iscsi")
+    )
+    assert(
+      rustFixtures.view
+        .filterKeys(_.startsWith("upstream_"))
+        .values
+        .forall(_.source.startsWith("https://github.com/jamesmunns/postcard/blob/"))
+    )
+
+  test("Postino matches upstream postcard 1.1.3 golden vectors"):
+    assertFixtureRoundTrip("upstream_unit", ())
+    assertFixtureRoundTrip("upstream_bool_false", false)
+    assertFixtureRoundTrip("upstream_bool_true", true)
+    assertFixtureRoundTrip("upstream_u8_5", 5.toByte)
+    assertFixtureRoundTrip("upstream_u16_42439", U16.unsafeFromInt(0xa5c7))
+    assertFixtureRoundTrip("upstream_u32_3450549266", U32.unsafeFromLong(0xcdab3412L))
+    assertFixtureRoundTrip(
+      "upstream_u64_1311768467294899695",
+      U64.unsafeFromBigInt(BigInt("1234567890abcdef", 16))
+    )
+    assertFixtureRoundTrip("upstream_i16_max", Short.MaxValue)
+    assertFixtureRoundTrip("upstream_i16_min", Short.MinValue)
+    assertFixtureRoundTrip("upstream_char_z", 'z')
+    assertFixtureRoundTrip("upstream_char_cent", '¢')
+
+    assertEquals(
+      Postino.decode[Char](fixtureBytes("upstream_char_gothic")),
+      Left(PostinoError.InvalidChar(BigInt(0x10348)))
+    )
+    assertEquals(
+      Postino.decode[Char](fixtureBytes("upstream_char_pleading_face")),
+      Left(PostinoError.InvalidChar(BigInt(0x1f97a)))
+    )
+
+    assertFixtureRoundTrip(
+      "upstream_struct_basic",
+      UpstreamBasic(
+        U16.unsafeFromInt(0xabcd),
+        0xfe.toByte,
+        U64.unsafeFromBigInt(BigInt("12344321abcddcba", 16)),
+        U32.unsafeFromLong(0xacacacacL)
+      )
+    )
+    assertFixtureRoundTrip[UpstreamBasicEnum]("upstream_enum_basic_bim", UpstreamBasicBim())
+    assertFixtureRoundTrip[UpstreamDataEnum](
+      "upstream_enum_data_bim",
+      UpstreamBim(U64.unsafeFromBigInt(U64.MaxValue))
+    )
+    assertFixtureRoundTrip[UpstreamDataEnum](
+      "upstream_enum_data_bib",
+      UpstreamBib(U16.unsafeFromInt(0xffff))
+    )
+    assertFixtureRoundTrip[UpstreamDataEnum]("upstream_enum_data_bap", UpstreamBap(0xff.toByte))
+    assertFixtureRoundTrip[UpstreamDataEnum](
+      "upstream_enum_data_kim",
+      UpstreamKim(UpstreamEnumStruct(0xf0.toByte, U16.unsafeFromInt(0xacac)))
+    )
+    assertFixtureRoundTrip[UpstreamDataEnum](
+      "upstream_enum_data_chi",
+      UpstreamChi(0x0f.toByte, U32.unsafeFromLong(0xc7c7c7c7L))
+    )
+    assertFixtureRoundTrip[UpstreamDataEnum](
+      "upstream_enum_data_sho",
+      UpstreamSho(U16.unsafeFromInt(0x6969), 0x07.toByte)
+    )
+    assertFixtureRoundTrip(
+      "upstream_tuple_u8_u16",
+      UpstreamTuple(0x12.toByte, U16.unsafeFromInt(0xc7a5))
+    )
+    assertFixtureRoundTrip("upstream_newtype_u32", UpstreamNewtype(U32.unsafeFromLong(5)))
+    assertFixtureRoundTrip(
+      "upstream_tuple_struct",
+      UpstreamTupleStruct(UpstreamTuple(0xa0.toByte, U16.unsafeFromInt(0x1234)))
+    )
+    assertFixtureRoundTrip("upstream_seq_u8", Vector[Byte](1, 2, 3, 4))
+    assertFixtureRoundTrip("upstream_string", "helLO!")
+    assertFixtureRoundTrip[SortedMap[Byte, Byte]](
+      "upstream_map_u8_u8",
+      SortedMap[Byte, Byte](
+        1.toByte -> 5.toByte,
+        2.toByte -> 6.toByte,
+        3.toByte -> 7.toByte,
+        4.toByte -> 8.toByte
+      )
+    )
+
+    val cstringBytes = bytes('h', 'e', 'L', 'l', 'o')
+    assertFixtureEncoded("upstream_cstring_bytes", cstringBytes)
+    assertEquals(
+      Postino.decode[Array[Byte]](fixtureBytes("upstream_cstring_bytes")).map(unsigned),
+      Right(unsigned(cstringBytes))
+    )
+
+  test("Postino matches upstream postcard COBS and CRC golden vectors"):
+    assertEquals(
+      Postino.encodeCobs(false).map(unsigned),
+      Right(fixture("upstream_cobs_false"))
+    )
+    assertEquals(Postino.decodeCobs[Boolean](fixtureBytes("upstream_cobs_false")), Right(false))
+    assertEquals(
+      Postino.encodeCobs("1").map(unsigned),
+      Right(fixture("upstream_cobs_string_1"))
+    )
+    assertEquals(Postino.decodeCobs[String](fixtureBytes("upstream_cobs_string_1")), Right("1"))
+    assertEquals(
+      Postino.encodeCobs("Hi!").map(unsigned),
+      Right(fixture("upstream_cobs_string_hi"))
+    )
+    assertEquals(
+      Postino.decodeCobs[String](fixtureBytes("upstream_cobs_string_hi")),
+      Right("Hi!")
+    )
+
+    val bytesValue = bytes(0x01, 0x00, 0x20, 0x30)
+    assertEquals(
+      Postino.encodeCobs(bytesValue).map(unsigned),
+      Right(fixture("upstream_cobs_bytes"))
+    )
+    assertEquals(
+      Postino.decodeCobs[Array[Byte]](fixtureBytes("upstream_cobs_bytes")).map(unsigned),
+      Right(unsigned(bytesValue))
+    )
+    assertEquals(
+      Postino.encodeCrc(Crc.Crc32Iscsi, bytesValue).map(unsigned),
+      Right(fixture("upstream_crc32c_bytes"))
+    )
+    assertEquals(
+      Postino
+        .decodeCrc[Array[Byte]](Crc.Crc32Iscsi, fixtureBytes("upstream_crc32c_bytes"))
+        .map(unsigned),
+      Right(unsigned(bytesValue))
+    )
 
   test("primitive codecs match Rust postcard fixture bytes"):
     assertFixtureRoundTrip("bool_true", true)
@@ -414,8 +579,24 @@ final class PostinoSuite extends FunSuite:
     )
     assertEquals(Postino.decode[Message](bytes(0x7f)), Left(PostinoError.UnknownVariant(127)))
 
-  private lazy val rustFixtures: Map[String, Vector[Int]] =
+  private final case class RustFixture(
+      flavor: String,
+      schema: String,
+      value: String,
+      bytes: Vector[Int],
+      source: String
+  )
+
+  private final case class RustFixtureCorpus(
+      metadata: Map[String, String],
+      fixtures: Map[String, RustFixture]
+  )
+
+  private lazy val rustFixtureCorpus: RustFixtureCorpus =
     loadRustFixtures()
+
+  private lazy val rustFixtures: Map[String, RustFixture] =
+    rustFixtureCorpus.fixtures
 
   private def assertFixtureRoundTrip[A](name: String, value: A)(using codec: Codec[A]): Unit =
     assertFixtureEncoded(name, value)
@@ -425,37 +606,74 @@ final class PostinoSuite extends FunSuite:
     assertEquals(Postino.encode(value).map(unsigned), Right(fixture(name)))
 
   private def fixture(name: String): Vector[Int] =
-    rustFixtures.getOrElse(name, fail(s"missing Rust postcard fixture '$name'"))
+    rustFixtures.getOrElse(name, fail(s"missing Rust postcard fixture '$name'")).bytes
 
   private def fixtureBytes(name: String): Array[Byte] =
     fixture(name).map(_.toByte).toArray
 
-  private def loadRustFixtures(): Map[String, Vector[Int]] =
+  private def loadRustFixtures(): RustFixtureCorpus =
     val resource =
-      Option(getClass.getClassLoader.getResourceAsStream("postcard-1.1.3.hex"))
-        .getOrElse(fail("missing postcard-1.1.3.hex test resource"))
+      Option(getClass.getClassLoader.getResourceAsStream("postcard-1.1.3-vectors.tsv"))
+        .getOrElse(fail("missing postcard-1.1.3-vectors.tsv test resource"))
 
     val source = ScalaSource.fromInputStream(resource, "UTF-8")
     try
-      source
-        .getLines()
-        .zipWithIndex
-        .foldLeft(Map.empty[String, Vector[Int]]):
-          case (fixtures, (line, index)) =>
-            val parts = line.split(":", 2)
-            if parts.length != 2 then fail(s"invalid fixture line ${index + 1}: $line")
+      val lines = source.getLines().toVector
+      val metadata =
+        lines
+          .takeWhile(_.startsWith("# "))
+          .foldLeft(Map.empty[String, String]): (metadata, line) =>
+            line.stripPrefix("# ").split(": ", 2) match
+              case Array(key, _) if metadata.contains(key) =>
+                fail(s"duplicate fixture metadata '$key'")
+              case Array(key, value) => metadata.updated(key, value)
+              case _                 => fail(s"invalid fixture metadata: $line")
 
-            val name = parts(0).trim
+      val body           = lines.dropWhile(_.startsWith("# "))
+      val expectedHeader = "name\tflavor\tschema\tvalue\tbytes\tsource"
+      if body.headOption != Some(expectedHeader) then
+        fail(s"invalid fixture header: ${body.headOption.getOrElse("missing")}")
+
+      val fixtures =
+        body.tail.zipWithIndex.foldLeft(Map.empty[String, RustFixture]):
+          case (fixtures, (line, index)) =>
+            val parts = line.split("\t", -1)
+            if parts.length != 6 then fail(s"invalid fixture line ${index + 6}: $line")
+
+            val name   = parts(0)
+            val flavor = parts(1)
+            val schema = parts(2)
+            val value  = parts(3)
+            val source = parts(5)
+            val required = Vector(
+              "name"   -> name,
+              "flavor" -> flavor,
+              "schema" -> schema,
+              "value"  -> value,
+              "source" -> source
+            )
+            required
+              .collectFirst { case (field, "") => field }
+              .foreach: field =>
+                fail(s"empty $field in fixture line ${index + 6}")
+            if !Set("raw", "cobs", "crc32-iso-hdlc", "crc32-iscsi").contains(flavor) then
+              fail(s"unknown fixture flavor '$flavor'")
+
             val values =
-              parts(1).trim
+              parts(4)
                 .split("\\s+")
                 .toVector
                 .filter(_.nonEmpty)
                 .map: byte =>
-                  Integer.parseInt(byte, 16)
+                  val value = Integer.parseInt(byte, 16)
+                  if value > 0xff then fail(s"fixture byte out of range: $byte")
+                  value
+            val fixture = RustFixture(flavor, schema, value, values, source)
 
             if fixtures.contains(name) then fail(s"duplicate Rust postcard fixture '$name'")
-            fixtures.updated(name, values)
+            fixtures.updated(name, fixture)
+
+      RustFixtureCorpus(metadata, fixtures)
     finally source.close()
 
   private def bytes(values: Int*): Array[Byte] =
