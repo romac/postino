@@ -4,6 +4,8 @@ import munit.FunSuite
 import postino.*
 import _root_.io.circe.Json
 
+import scala.collection.immutable.SortedSet
+
 final class PostinoCirceSuite extends FunSuite:
   final case class Sensor(id: U16, temp: Int, label: String) derives Codec
   final case class Blob(bytes: Array[Byte]) derives Codec
@@ -67,6 +69,19 @@ final class PostinoCirceSuite extends FunSuite:
 
     assertEquals(codec(snapshot), json)
     assertEquals(codec.decodeJson(json), Right(snapshot))
+
+  test("toCirce encodes and decodes fixed arrays and sorted sets"):
+    val fixedCodec = PostinoCirce.toCirce[FixedArray[Int, 2]]
+    val setCodec   = PostinoCirce.toCirce[SortedSet[Int]]
+    val fixed      = FixedArray.unsafeFrom[Int, 2](Vector(1, 2))
+    val fixedJson  = Json.arr(Json.fromInt(1), Json.fromInt(2))
+    val set        = SortedSet(1, 2)
+    val setJson    = Json.arr(Json.fromInt(1), Json.fromInt(2))
+
+    assertEquals(fixedCodec(fixed), fixedJson)
+    assertEquals(fixedCodec.decodeJson(fixedJson), Right(fixed))
+    assertEquals(setCodec(set), setJson)
+    assertEquals(setCodec.decodeJson(setJson), Right(set))
 
   test("toCirce encodes and decodes sums as tagged objects"):
     val codec = PostinoCirce.toCirce[Message]

@@ -1,10 +1,10 @@
 package postino.circe
 
-import postino.{Codec as PostinoCodec, U16, U32, U64, U128}
+import postino.{Codec as PostinoCodec, FixedArray, U16, U32, U64, U128}
 import _root_.io.circe.{ACursor, Codec as CirceCodec, Decoder as CirceDecoder, DecodingFailure}
 import _root_.io.circe.{Encoder as CirceEncoder, Json}
 
-import scala.collection.immutable.SortedMap
+import scala.collection.immutable.{SortedMap, SortedSet}
 import scala.compiletime.{constValue, erasedValue, summonInline}
 import scala.deriving.Mirror
 import scala.reflect.ClassTag
@@ -151,6 +151,21 @@ trait LowPriorityPostinoCirceSchemas:
     def decode(cursor: ACursor): CirceDecoder.Result[Array[A]] =
       decodeVector(cursor, schema).map(_.toArray)
 
+  given fixedArraySchema[A, N <: Int](using
+      schema: PostinoCirceSchema[A],
+      length: ValueOf[N]
+  ): PostinoCirceSchema[FixedArray[A, N]] with
+    def encode(value: FixedArray[A, N]): Json =
+      encodeIterable(value, schema)
+
+    def decode(cursor: ACursor): CirceDecoder.Result[FixedArray[A, N]] =
+      decodeVector(cursor, schema)
+        .flatMap: values =>
+          FixedArray
+            .from[A, N](values)
+            .left
+            .map(error => DecodingFailure(error.message, cursor.history))
+
   given mapSchema[K, V](using
       keySchema: PostinoCirceSchema[K],
       valueSchema: PostinoCirceSchema[V]
@@ -172,6 +187,16 @@ trait LowPriorityPostinoCirceSchemas:
     def decode(cursor: ACursor): CirceDecoder.Result[SortedMap[K, V]] =
       decodeEntries(cursor, keySchema, valueSchema)
         .map(entries => SortedMap.from(entries)(using ordering))
+
+  given sortedSetSchema[A](using
+      schema: PostinoCirceSchema[A],
+      ordering: Ordering[A]
+  ): PostinoCirceSchema[SortedSet[A]] with
+    def encode(value: SortedSet[A]): Json =
+      encodeIterable(value, schema)
+
+    def decode(cursor: ACursor): CirceDecoder.Result[SortedSet[A]] =
+      decodeVector(cursor, schema).map(values => SortedSet.from(values)(using ordering))
 
   private inline def productSchema[A](mirror: Mirror.ProductOf[A]): PostinoCirceSchema[A] =
     val productName = constValue[mirror.MirroredLabel].toString

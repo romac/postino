@@ -3,7 +3,7 @@ package postino
 import munit.FunSuite
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, IOException, InputStream, OutputStream}
-import scala.collection.immutable.{ListMap, SortedMap}
+import scala.collection.immutable.{ListMap, SortedMap, SortedSet}
 import scala.io.Source as ScalaSource
 
 final class PostinoSuite extends FunSuite:
@@ -33,9 +33,8 @@ final class PostinoSuite extends FunSuite:
   final case class UpstreamChi(a: Byte, b: U32)           extends UpstreamDataEnum derives Codec
   final case class UpstreamSho(first: U16, second: Byte)  extends UpstreamDataEnum derives Codec
 
-  final case class UpstreamTuple(first: Byte, second: U16) derives Codec
   final case class UpstreamNewtype(value: U32) derives Codec
-  final case class UpstreamTupleStruct(value: UpstreamTuple) derives Codec
+  final case class UpstreamTupleStruct(value: (Byte, U16)) derives Codec
 
   sealed trait Message
   final case class Ping()                   extends Message derives Codec
@@ -72,7 +71,7 @@ final class PostinoSuite extends FunSuite:
       rustFixtureCorpus.metadata("upstream-commit"),
       "718aa6a6850456017c19eeff67303c633f875736"
     )
-    assertEquals(rustFixtures.size, 70)
+    assertEquals(rustFixtures.size, 75)
     assertEquals(
       rustFixtures.values.map(_.flavor).toSet,
       Set("raw", "cobs", "crc32-iso-hdlc", "crc32-iscsi")
@@ -142,12 +141,12 @@ final class PostinoSuite extends FunSuite:
     )
     assertFixtureRoundTrip(
       "upstream_tuple_u8_u16",
-      UpstreamTuple(0x12.toByte, U16.unsafeFromInt(0xc7a5))
+      (0x12.toByte, U16.unsafeFromInt(0xc7a5))
     )
     assertFixtureRoundTrip("upstream_newtype_u32", UpstreamNewtype(U32.unsafeFromLong(5)))
     assertFixtureRoundTrip(
       "upstream_tuple_struct",
-      UpstreamTupleStruct(UpstreamTuple(0xa0.toByte, U16.unsafeFromInt(0x1234)))
+      UpstreamTupleStruct((0xa0.toByte, U16.unsafeFromInt(0x1234)))
     )
     assertFixtureRoundTrip("upstream_seq_u8", Vector[Byte](1, 2, 3, 4))
     assertFixtureRoundTrip("upstream_string", "helLO!")
@@ -279,6 +278,35 @@ final class PostinoSuite extends FunSuite:
     assertFixtureRoundTrip[Option[Option[Int]]]("option_option_i32_some_some_300", Some(Some(300)))
     assertFixtureRoundTrip("empty_vec_i16", List.empty[Short])
     assertFixtureRoundTrip("list", List[Short](1, -1, 300))
+
+  test("fixed arrays, tuples, results, and sorted sets match Rust postcard fixture bytes"):
+    val fixed = FixedArray.unsafeFrom[U16, 3](
+      Vector(U16.unsafeFromInt(1), U16.unsafeFromInt(300), U16.unsafeFromInt(65535))
+    )
+
+    assertFixtureRoundTrip("fixed_array_u16_3", fixed)
+    assertFixtureRoundTrip(
+      "tuple_u8_u16_i32",
+      (0x12.toByte, U16.unsafeFromInt(300), -2)
+    )
+    assertFixtureRoundTrip[Either[Int, U16]](
+      "result_u16_i32_ok_300",
+      Right(U16.unsafeFromInt(300))
+    )
+    assertFixtureRoundTrip[Either[Int, U16]]("result_u16_i32_err_minus_two", Left(-2))
+    assertFixtureRoundTrip(
+      "sorted_set_i16",
+      SortedSet[Short]((-2).toShort, 1.toShort, 300.toShort)
+    )
+
+    assertEquals(
+      FixedArray.from[Int, 2](List(1)),
+      Left(PostinoError.FixedArrayLengthMismatch(2, 1))
+    )
+    assertEquals(
+      Postino.decode[Either[Int, U16]](bytes(0x02)),
+      Left(PostinoError.UnknownVariant(2))
+    )
 
   test("maps match Rust postcard fixture bytes"):
     val sorted = SortedMap(1 -> "one", 2 -> "two")

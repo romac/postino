@@ -62,6 +62,11 @@ option_option_i32_some_some_300	raw	option<option<i32>>	{"some":{"some":300}}	01
 empty_vec_i16	raw	seq<i16>	[]	00	interop/rust-fixtures/src/main.rs
 list	raw	seq<i16>	[1,-1,300]	03 02 01 d8 04	interop/rust-fixtures/src/main.rs
 map_i32_string	raw	map<i32,string>	[{"key":1,"value":"one"},{"key":2,"value":"two"}]	02 02 03 6f 6e 65 04 03 74 77 6f	interop/rust-fixtures/src/main.rs
+fixed_array_u16_3	raw	array<u16,3>	[1,300,65535]	01 ac 02 ff ff 03	interop/rust-fixtures/src/main.rs
+tuple_u8_u16_i32	raw	tuple(u8,u16,i32)	[18,300,-2]	12 ac 02 03	interop/rust-fixtures/src/main.rs
+result_u16_i32_ok_300	raw	result<u16,i32>	{"ok":300}	00 ac 02	interop/rust-fixtures/src/main.rs
+result_u16_i32_err_minus_two	raw	result<u16,i32>	{"err":-2}	01 03	interop/rust-fixtures/src/main.rs
+sorted_set_i16	raw	set<i16>	[-2,1,300]	03 03 02 d8 04	interop/rust-fixtures/src/main.rs
 sensor	raw	struct Sensor{id:u16,temp:i32,label:string}	{"id":4660,"temp":-21,"label":"lab"}	b4 24 29 03 6c 61 62	interop/rust-fixtures/src/main.rs
 sensor_cobs	cobs	struct Sensor{id:u16,temp:i32,label:string}	{"id":4660,"temp":-21,"label":"lab"}	08 b4 24 29 03 6c 61 62 00	interop/rust-fixtures/src/main.rs
 sensor_crc32	crc32-iso-hdlc	struct Sensor{id:u16,temp:i32,label:string}	{"id":4660,"temp":-21,"label":"lab"}	b4 24 29 03 6c 61 62 a0 79 98 95	interop/rust-fixtures/src/main.rs

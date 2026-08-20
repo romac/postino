@@ -30,6 +30,9 @@ object PostinoError:
     def message =
       s"collection element count $requested exceeds remaining budget $remaining of $max"
 
+  final case class FixedArrayLengthMismatch(expected: Int, actual: Int) extends PostinoError:
+    def message = s"fixed array requires $expected element(s), got $actual"
+
   final case class InvalidBoolean(value: Int) extends PostinoError:
     def message = s"invalid boolean tag $value"
 

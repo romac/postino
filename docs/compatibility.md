@@ -17,7 +17,10 @@ Supported:
 - byte arrays as `varint(usize)` byte length followed by raw bytes
 - options as a one-byte tag (`0` for `None`, `1` for `Some`) followed by the value
 - sequences as `varint(usize)` length followed by each element
+- fixed arrays and tuples as their elements in order, with no length prefix
 - maps as `varint(usize)` length followed by key/value pairs
+- `Result` as a `u32` discriminant (`0` for `Ok`, `1` for `Err`) followed by the value
+- ordered sets as `varint(usize)` length followed by elements in key order
 - case classes/products as constructor fields in order, with no field names and no length prefix
 - sum schemas as a `u32` varint discriminant followed by the selected payload
 - COBS frames produced by `postcard::to_stdvec_cobs`, including the final zero terminator
@@ -32,6 +35,12 @@ Postcard maps preserve the encoder-side iteration order on the wire. Rust
 `BTreeMap` encodes in key order; Rust `HashMap` does not provide a stable wire
 order. Postino mirrors this: `Map[K, V]` encodes using the map value's iterator,
 while `SortedMap[K, V]` encodes in its `Ordering[K]` order.
+
+Scala `Array[A]`, `List[A]`, and `Vector[A]` map to length-prefixed Rust sequences.
+`FixedArray[A, N]` maps to Rust `[A; N]`, and Scala tuples map to Rust tuples.
+`Either[E, A]` maps `Right` to Rust `Ok` and `Left` to Rust `Err`.
+`SortedSet[A]` maps to Rust `BTreeSet`; unordered sets are not provided because
+their iteration order does not define stable wire bytes.
 
 Derived sum codecs assign discriminants in Scala declaration order (`0..n-1`)
 for sealed trait hierarchies where every child subtype has its own `Codec`.

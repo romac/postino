@@ -191,8 +191,12 @@ The core module includes bidirectional codecs for:
 - `List[A]`
 - `Vector[A]`
 - `Array[A]`
+- `FixedArray[A, N]` for Rust `[A; N]`
+- arbitrary Scala tuples
+- `Either[E, A]` for Rust `Result<A, E>`
 - `Map[K, V]`
 - `SortedMap[K, V]`
+- `SortedSet[A]`
 - case class products via `derives Codec`
 - declaration-order sealed trait hierarchies via `derives Codec` when every subtype has a `Codec`
 - explicit ADTs via `Postino.sum`
@@ -215,6 +219,10 @@ Use `BigInt` for Rust `i128`; values outside the signed 128-bit range fail with 
 Use `U128` for Rust `u128`.
 
 Rust `u8` values use the raw `Byte` codec. Values above 127 appear as negative Scala `Byte` values; mask with `byte & 0xff` when you need the unsigned integer view.
+
+`Array[A]`, `List[A]`, and `Vector[A]` are length-prefixed postcard sequences. Use `FixedArray[A, N]` for a Rust fixed array such as `[A; N]`; its length is checked when the Scala value is constructed and is not written to the wire. Scala tuples likewise encode their elements without a length prefix.
+
+`Either[E, A]` maps to Rust `Result<A, E>`: `Right` / `Ok` uses discriminant `0`, while `Left` / `Err` uses discriminant `1`. `SortedSet[A]` matches the deterministic element order of Rust `BTreeSet`; unordered sets are intentionally not provided.
 
 Rust `char` values encode as a UTF-8 byte length followed by the scalar's bytes. Use the Scala `Char` codec when they fit in a single non-surrogate UTF-16 code unit. Supplementary Rust scalar values need a schema-level representation other than Scala `Char`.
 

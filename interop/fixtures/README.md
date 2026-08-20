@@ -12,7 +12,7 @@ The columns have these meanings:
 
 - `name`: stable unique vector identifier.
 - `flavor`: `raw`, `cobs`, `crc32-iso-hdlc`, or `crc32-iscsi`.
-- `schema`: the postcard schema in compact Serde-oriented notation. Primitive names match the Serde data model. Containers use `option<T>`, `seq<T>`, `map<K,V>`, `tuple(...)`, `newtype(...)`, `struct`, and `enum`.
+- `schema`: the postcard schema in compact Serde-oriented notation. Primitive names match the Serde data model. Containers use `option<T>`, `seq<T>`, `array<T,N>`, `set<T>`, `map<K,V>`, `result<T,E>`, `tuple(...)`, `newtype(...)`, `struct`, and `enum`.
 - `value`: compact JSON. Maps use ordered `{"key":...,"value":...}` arrays because wire order is significant. Nested options use explicit `{"some":...}` objects when JSON `null` would be ambiguous.
 - `bytes`: lowercase, space-separated hexadecimal bytes. The field is empty when the encoded value is empty.
 - `source`: a repository-relative generator path or a permanent upstream source URL.

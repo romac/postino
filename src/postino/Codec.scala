@@ -1,7 +1,7 @@
 package postino
 
 import scala.annotation.tailrec
-import scala.collection.immutable.SortedMap
+import scala.collection.immutable.{SortedMap, SortedSet}
 import scala.compiletime.{constValue, erasedValue}
 import scala.deriving.Mirror
 import scala.reflect.ClassTag
@@ -283,6 +283,27 @@ trait LowPriorityCodecs:
     def decode(in: Reader): Either[PostinoError, Vector[A]] =
       decodeIndexed(in, valueCodec).map(_.toVector)
 
+  given eitherCodec[E, A](using errorCodec: Codec[E], valueCodec: Codec[A]): Codec[Either[E, A]]
+  with
+    def encode(value: Either[E, A], out: Writer): Either[PostinoError, Unit] =
+      value match
+        case Right(inner) =>
+          Varint
+            .writeUnsigned(BigInt(0), 32, "u32", out)
+            .flatMap(_ => valueCodec.encode(inner, out))
+        case Left(error) =>
+          Varint
+            .writeUnsigned(BigInt(1), 32, "u32", out)
+            .flatMap(_ => errorCodec.encode(error, out))
+
+    def decode(in: Reader): Either[PostinoError, Either[E, A]] =
+      Varint
+        .readUnsigned(in, 32, "u32")
+        .flatMap:
+          case discriminant if discriminant == 0 => valueCodec.decode(in).map(Right(_))
+          case discriminant if discriminant == 1 => errorCodec.decode(in).map(Left(_))
+          case discriminant => Left(PostinoError.UnknownVariant(discriminant.toLong))
+
   given mapCodec[K, V](using keyCodec: Codec[K], valueCodec: Codec[V]): Codec[Map[K, V]] with
     def encode(value: Map[K, V], out: Writer): Either[PostinoError, Unit] =
       encodeMap(value, keyCodec, valueCodec, out)
@@ -301,6 +322,16 @@ trait LowPriorityCodecs:
     def decode(in: Reader): Either[PostinoError, SortedMap[K, V]] =
       decodeSortedMap(in, keyCodec, valueCodec, ordering)
 
+  given sortedSetCodec[A](using
+      valueCodec: Codec[A],
+      ordering: Ordering[A]
+  ): Codec[SortedSet[A]] with
+    def encode(value: SortedSet[A], out: Writer): Either[PostinoError, Unit] =
+      encodeIterable(value, valueCodec, out)
+
+    def decode(in: Reader): Either[PostinoError, SortedSet[A]] =
+      decodeIndexed(in, valueCodec).map(values => SortedSet.from(values)(using ordering))
+
   given arrayCodec[A](using valueCodec: Codec[A], classTag: ClassTag[A]): Codec[Array[A]] with
     // Kept low-priority so the Array[Byte] byte-blob codec in Codec wins for raw bytes.
     def encode(value: Array[A], out: Writer): Either[PostinoError, Unit] =
@@ -308,6 +339,24 @@ trait LowPriorityCodecs:
 
     def decode(in: Reader): Either[PostinoError, Array[A]] =
       decodeIndexed(in, valueCodec).map(_.toArray)
+
+  given fixedArrayCodec[A, N <: Int](using
+      valueCodec: Codec[A],
+      length: ValueOf[N]
+  ): Codec[FixedArray[A, N]] with
+    def encode(value: FixedArray[A, N], out: Writer): Either[PostinoError, Unit] =
+      encodeAll(value.iterator, valueCodec, out)
+
+    def decode(in: Reader): Either[PostinoError, FixedArray[A, N]] =
+      val expected = length.value
+      if expected < 0 then Left(PostinoError.FixedArrayLengthMismatch(expected, 0))
+      else
+        in.reserveCollection(expected, expected.toLong)
+          .flatMap(_ => decodeFixed(expected, in, valueCodec))
+          .map(values => FixedArray.decoded[A, N](values))
+
+  inline given tupleCodec[Values <: Tuple]: Codec[Values] =
+    TupleCodecs.derivedTuple[Values]
 
   private def encodeIterable[A](
       values: Iterable[A],
@@ -392,6 +441,25 @@ trait LowPriorityCodecs:
               case Some(cause) => Left(cause)
               case None        => Right(builder.result())
 
+  private def decodeFixed[A](
+      length: Int,
+      in: Reader,
+      valueCodec: Codec[A]
+  ): Either[PostinoError, Vector[A]] =
+    val builder                     = Vector.newBuilder[A]
+    var index                       = 0
+    var error: Option[PostinoError] = None
+
+    while index < length && error.isEmpty do
+      valueCodec.decode(in) match
+        case Right(value) => builder += value
+        case Left(cause)  => error = Some(cause)
+      index += 1
+
+    error match
+      case Some(cause) => Left(cause)
+      case None        => Right(builder.result())
+
   private def decodeMap[K, V](
       in: Reader,
       keyCodec: Codec[K],
@@ -450,6 +518,43 @@ trait LowPriorityCodecs:
     error match
       case Some(cause) => Left(cause)
       case None        => Right(())
+
+private[postino] object TupleCodecs:
+  inline def derivedTuple[Values <: Tuple]: Codec[Values] =
+    val elementCodecs = IArray.from(summonCodecs[Values])
+    tupleCodec(elementCodecs)
+
+  private inline def summonCodecs[Values <: Tuple]: List[Codec[Any]] =
+    inline erasedValue[Values] match
+      case _: EmptyTuple => Nil
+      case _: (value *: rest) =>
+        summonCodec[value].asInstanceOf[Codec[Any]] :: summonCodecs[rest]
+
+  private inline def summonCodec[A]: Codec[A] =
+    ${ Macros.summonFieldCodec[A] }
+
+  private def tupleCodec[Values <: Tuple](elementCodecs: IArray[Codec[Any]]): Codec[Values] =
+    new Codec[Values]:
+      def encode(value: Values, out: Writer): Either[PostinoError, Unit] =
+        val product = value.asInstanceOf[Product]
+        var index   = 0
+        while index < elementCodecs.length do
+          elementCodecs(index).encode(product.productElement(index), out) match
+            case Right(())   => index += 1
+            case Left(error) => return Left(error)
+        Right(())
+
+      def decode(in: Reader): Either[PostinoError, Values] =
+        val values = new Array[Any](elementCodecs.length)
+        var index  = 0
+        while index < elementCodecs.length do
+          elementCodecs(index).decode(in) match
+            case Right(value) =>
+              values(index) = value
+              index += 1
+            case Left(error) =>
+              return Left(PostinoError.ProductFieldFailed("Tuple", s"_${index + 1}", error))
+        Right(Tuple.fromArray(values).asInstanceOf[Values])
 
 private[postino] object ProductCodecs:
   inline def derivedProduct[A](mirror: Mirror.ProductOf[A]): Codec[A] =

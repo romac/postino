@@ -1,6 +1,6 @@
 use crc::{Algorithm, Crc, CRC_32_ISCSI, CRC_32_ISO_HDLC};
 use serde::{Serialize, Serializer};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 const POSTCARD_VERSION: &str = "1.1.3";
 const UPSTREAM_COMMIT: &str = "718aa6a6850456017c19eeff67303c633f875736";
@@ -485,6 +485,36 @@ fn print_postino_vectors() {
         "map<i32,string>",
         "[{\"key\":1,\"value\":\"one\"},{\"key\":2,\"value\":\"two\"}]",
         &BTreeMap::from([(1i32, "one"), (2i32, "two")]),
+    );
+    print_fixture(
+        "fixed_array_u16_3",
+        "array<u16,3>",
+        "[1,300,65535]",
+        &[1u16, 300, u16::MAX],
+    );
+    print_fixture(
+        "tuple_u8_u16_i32",
+        "tuple(u8,u16,i32)",
+        "[18,300,-2]",
+        &(0x12u8, 300u16, -2i32),
+    );
+    print_fixture(
+        "result_u16_i32_ok_300",
+        "result<u16,i32>",
+        "{\"ok\":300}",
+        &Result::<u16, i32>::Ok(300),
+    );
+    print_fixture(
+        "result_u16_i32_err_minus_two",
+        "result<u16,i32>",
+        "{\"err\":-2}",
+        &Result::<u16, i32>::Err(-2),
+    );
+    print_fixture(
+        "sorted_set_i16",
+        "set<i16>",
+        "[-2,1,300]",
+        &BTreeSet::from([-2i16, 1, 300]),
     );
 
     let sensor = Sensor {
