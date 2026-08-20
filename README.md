@@ -4,41 +4,41 @@ Postino is a Scala 3 implementation of the Rust [`postcard`](https://docs.rs/pos
 
 It is useful when a Scala program needs to read or write bytes compatible with Rust `postcard::to_stdvec`, `postcard::to_stdvec_cobs`, or postcard's CRC flavor for a known schema. The format is not self-describing: both sides must agree on field order, enum discriminants, and supported types.
 
-The supported wire-format boundary is documented in [docs/compatibility.md](docs/compatibility.md).
+The supported wire-format boundary is documented in [docs/compatibility.md](docs/compatibility.md). See [CHANGELOG.md](CHANGELOG.md) for release notes and compatibility changes.
 
 ## Installation
 
 Core module:
 
 ```scala
-ivy"me.romac::postino:0.1.0-M1"
+ivy"me.romac::postino:0.1.0-M2"
 ```
 
 Optional scodec adapter:
 
 ```scala
-ivy"me.romac::postino-scodec:0.1.0-M1"
+ivy"me.romac::postino-scodec:0.1.0-M2"
 ```
 
 Optional Circe adapter:
 
 ```scala
-ivy"me.romac::postino-circe:0.1.0-M1"
+ivy"me.romac::postino-circe:0.1.0-M2"
 ```
 
 Optional FS2 adapter:
 
 ```scala
-ivy"me.romac::postino-fs2:0.1.0-M1"
+ivy"me.romac::postino-fs2:0.1.0-M2"
 ```
 
 For sbt:
 
 ```scala
-libraryDependencies += "me.romac" %% "postino" % "0.1.0-M1"
-libraryDependencies += "me.romac" %% "postino-scodec" % "0.1.0-M1"
-libraryDependencies += "me.romac" %% "postino-circe" % "0.1.0-M1"
-libraryDependencies += "me.romac" %% "postino-fs2" % "0.1.0-M1"
+libraryDependencies += "me.romac" %% "postino" % "0.1.0-M2"
+libraryDependencies += "me.romac" %% "postino-scodec" % "0.1.0-M2"
+libraryDependencies += "me.romac" %% "postino-circe" % "0.1.0-M2"
+libraryDependencies += "me.romac" %% "postino-fs2" % "0.1.0-M2"
 ```
 
 ## Basic Usage

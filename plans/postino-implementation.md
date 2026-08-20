@@ -205,6 +205,8 @@ tooling, not wire encoding.
 
 ## Milestones
 
+These are historical implementation milestones. Their numbers do not correspond to the Maven prerelease suffixes. The `0.1.0-M1` release already included implementation milestones M0 through M5.
+
 ### M0: Mill Project Skeleton
 
 - add `mill` launcher and `build.mill`

@@ -7,7 +7,7 @@ import mill.scalalib.scalafmt.ScalafmtModule
 
 trait PostinoPublishModule extends ScalaModule with mill.javalib.SonatypeCentralPublishModule:
   def publishVersion: T[String] = Task.Input:
-    Task.env.getOrElse("POSTINO_VERSION", "0.1.0-M1")
+    Task.env.getOrElse("POSTINO_VERSION", "0.1.0-M2")
 
   def postinoGroupId: T[String] = Task.Input:
     Task.env.getOrElse("POSTINO_GROUP_ID", "me.romac")
