@@ -24,9 +24,6 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Set up Coursier
-        uses: coursier/setup-action@9b7939bf01fd1185ce2babe16135168361bf2c62 # v3.0.2
-
       - name: Set up Rust
         run: rustup toolchain install stable --profile minimal --component rustfmt,clippy
 

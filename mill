@@ -31,17 +31,16 @@ if [ -n "${MILL_SUFFIX}" ] && [ -x "${MILL_CACHE}/${MILL_VERSION}${MILL_SUFFIX}"
   exec "${MILL_CACHE}/${MILL_VERSION}${MILL_SUFFIX}" "$@"
 fi
 
-if [ -x "${MILL_CACHE}/${MILL_VERSION}" ]; then
-  exec "${MILL_CACHE}/${MILL_VERSION}" "$@"
+MILL_JAR="${MILL_CACHE}/${MILL_VERSION}-jvm"
+
+if [ ! -s "${MILL_JAR}" ]; then
+  MILL_JAR_URL="https://repo1.maven.org/maven2/com/lihaoyi/mill-dist/${MILL_VERSION}/mill-dist-${MILL_VERSION}.exe"
+  MILL_JAR_TEMP="${MILL_JAR}.tmp.$$"
+
+  mkdir -p "${MILL_CACHE}"
+  echo "Downloading Mill ${MILL_VERSION} from ${MILL_JAR_URL} ..." >&2
+  curl -fL -o "${MILL_JAR_TEMP}" "${MILL_JAR_URL}"
+  mv "${MILL_JAR_TEMP}" "${MILL_JAR}"
 fi
 
-if command -v cs >/dev/null 2>&1; then
-  exec cs launch "com.lihaoyi:mill-dist:${MILL_VERSION}" -- "$@"
-fi
-
-if command -v coursier >/dev/null 2>&1; then
-  exec coursier launch "com.lihaoyi:mill-dist:${MILL_VERSION}" -- "$@"
-fi
-
-echo "Mill ${MILL_VERSION} is not cached and neither cs nor coursier is available." >&2
-exit 1
+exec java -jar "${MILL_JAR}" "$@"
